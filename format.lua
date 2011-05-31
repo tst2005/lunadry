@@ -61,7 +61,7 @@ local lua = {
   comment = C(P "--" * V "longstring" * NEWLINE) +
             C(P "--" * (P(1) - P "\n")^0 * (P "\n" + -P(1)));
 
-  space = (locale.space + V "comment")^0;
+  space = (locale.space + INDENT * V "comment")^0;
 
   -- Types and Comments
 
@@ -77,8 +77,8 @@ local lua = {
 
   -- Lua Complete Syntax
 
-  --chunk = (V "space" * V "stat" * (V "space" * event("semicolon", ";"))^-1)^0 * (V "space" * V "laststat" * (V "space" * event("semicolon", ";"))^-1)^-1;
-  chunk = (V "space" * INDENT * V "stat" * (V "space" * P ";")^-1 * NEWLINE)^0 * (V "space" * V "laststat" * (V "space" * P ";")^-1)^-1;
+  --chunk = ((INDENT * (locale.space^0 * V "comment"))^0 * locale.space^0 * INDENT * V "stat" * (V "space" * P ";")^-1 * NEWLINE)^0 * (V "space" * V "laststat" * (V "space" * P ";")^-1)^-1;
+  chunk = (V "space" * INDENT * V "stat" * (V "space" * P ";")^-1 * NEWLINE)^0 * (V "space" * INDENT * V "laststat" * (V "space" * P ";")^-1 * NEWLINE)^-1;
 
   block = V "chunk";
 
@@ -94,7 +94,7 @@ local lua = {
          V "varlist" * SPACE * V "space" * C "=" * SPACE * V "space" * V "explist" +
          V "functioncall";
 
-  laststat = INDENT * (K "return" * (SPACE * V "space" * V "explist")^-1 + K "break") * NEWLINE;
+  laststat = K "return" * (SPACE * V "space" * V "explist")^-1 + K "break";
 
   funcname = V "Name" * (V "space" * C "." * V "space" * V "Name")^0 * (V "space" * C ":" * V "space" * V "Name")^-1;
 
@@ -195,8 +195,9 @@ local lua = {
 local function cat (s, i, ...)
   return true, table.concat({...});
 end
-lua.stat = Cmt(lua.stat, cat);
-lua.chunk = Cmt(lua.chunk, cat);
+for k, v in pairs(lua) do
+  lua[k] = Cmt(v, cat);
+end
 
 --[[ debug
 local level = 0;
