@@ -15,6 +15,7 @@ local Cc = lpeg.Cc;
 local Cg = lpeg.Cg;
 local Cs = lpeg.Cs;
 local Cmt = lpeg.Cmt;
+local Cf = lpeg.Cf;
 
 local NEWLINE = Cc "\n";
 local n = 0;
@@ -75,7 +76,6 @@ local lua = {
 
   -- Lua Complete Syntax
 
-  --chunk = ((INDENT * (locale.space^0 * V "comment"))^0 * locale.space^0 * INDENT * V "stat" * (V "space" * P ";")^-1 * NEWLINE)^0 * (V "space" * V "laststat" * (V "space" * P ";")^-1)^-1;
   chunk = (V "space" * INDENT * V "stat" * (V "space" * P ";")^-1 * NEWLINE)^0 * (V "space" * INDENT * V "laststat" * (V "space" * P ";")^-1 * NEWLINE)^-1;
 
   block = V "chunk";
@@ -152,14 +152,14 @@ local lua = {
 
   ["function"] = K "function" * SPACE * V "space" * V "funcbody";
 
-  funcbody = C "(" * V "space" * (V "parlist" * V "space")^-1 * C ")" * INDENT_INCREASE(V "space" *  V "block" * V "space") * NEWLINE * INDENT * K "end";
+  funcbody = C "(" * V "space" * (V "parlist" * V "space")^-1 * C ")" * INDENT_INCREASE(V "space" *  V "block" * V "space") * INDENT * K "end";
 
   parlist = V "namelist" * (V "space" * C "," * V "space" * C "...")^-1 +
             C "...";
 
-  tableconstructor = C "{" * V "space" * INDENT_INCREASE((V "fieldlist" * V "space")^-1) * NEWLINE * INDENT * C "}";
+  tableconstructor = C "{" * V "space" * INDENT_INCREASE((V "fieldlist" * V "space")^-1) * INDENT * C "}";
 
-  fieldlist = INDENT * V "field" * (V "space" * V "fieldsep" * V "space" * NEWLINE * INDENT * V "field")^0 * (V "space" * V "fieldsep")^-1;
+  fieldlist = INDENT * V "field" * (V "space" * V "fieldsep" * V "space" * NEWLINE * INDENT * V "field")^0 * (V "space" * V "fieldsep" * NEWLINE)^-1;
 
   field = C "[" * V "space" * V "exp" * V "space" * C "]" * SPACE * V "space" * C "=" * SPACE * V "space" * V "exp" +
           V "Name" * SPACE * V "space" * C "=" * SPACE * V "space" * V "exp" +
@@ -189,22 +189,12 @@ local lua = {
          K "not" * SPACE;
 };
 
--- for all statements/chunks, immediately evaluate captures, collapse to single string
-local function cat (s, i, ...)
-  return true, table.concat({...});
-end
---lua.stat = Cmt(lua.stat, cat)
---lua.chunk = Cmt(lua.chunk, cat)
-for k, v in pairs(lua) do
-  lua[k] = Cmt(v, cat);
-end
-
 --[[ debug
 local level = 0;
 for k, p in pairs(lua) do
-  local enter = lpeg.Cmt(lpeg.P(true), function(s, p, ...) io.stdout:write((" "):rep(level*2), "ENTER ", k, ": ", s:sub(p, p), "\n") level = level+1; return p end);
-  local leave = lpeg.Cmt(lpeg.P(true), function(s, p, ...) level = level-1; io.stdout:write((" "):rep(level*2), "LEAVE ", k, "\n") return p end) * (lpeg.P("k") - lpeg.P "k");
-  lua[k] = lpeg.Cmt(enter * p + leave, function(s, p, ...) level = level-1; if k == "space" or k == "comment" then return p end io.stdout:write((" "):rep(level*2), "MATCH ", k, "\n", s:sub(p - 200 < 0 and 1 or p-200, p-1), "\n") return p end)
+  local enter = lpeg.Cmt(lpeg.P(true), function(s, p, ...) io.stdout:write((" "):rep(level*2), "ENTER ", k, ": ", s:sub(p, p), "\n") level = level+1; return true end);
+  local leave = lpeg.Cmt(lpeg.P(true), function(s, p, ...) level = level-1; io.stdout:write((" "):rep(level*2), "LEAVE ", k, "\n") return true end) * (lpeg.P("k") - lpeg.P "k");
+  lua[k] = lpeg.Cmt(enter * p + leave, function(s, p, ...) level = level-1; if k == "space" or k == "comment" then return true end io.stdout:write((" "):rep(level*2), "MATCH ", k, "\n", s:sub(p - 200 < 0 and 1 or p-200, p-1), "\n") return true, ... end)
 end
 --]]
 
@@ -213,7 +203,7 @@ _G.lua = lua
 function indent (file, dispatch_table)
   file = type(file == "string") and file or nil;
 
-  local lua = P(lua);
+  local lua = Cf(lua, function(a,b) return a..b end);
 
   local source = io.open(file, "r"):read "*a";
 
