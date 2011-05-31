@@ -48,8 +48,8 @@ local lua = {
 
   -- longstrings
 
-  longstring = C { -- from Roberto Ierusalimschy's lpeg examples
-    V "open" * C((P(1) - V "closeeq")^0) * V "close" / function (o, s) return s end;
+  longstring = P { -- from Roberto Ierusalimschy's lpeg examples
+    (V "open" * (P(1) - V "closeeq")^0 * V "close") / function () end,
 
     open = "[" * Cg((P "=")^0, "init") * P "[" * (P "\n")^-1;
     close = "]" * C((P "=")^0) * "]";
@@ -58,10 +58,10 @@ local lua = {
 
   -- comments & whitespace
 
-  comment = C(P "--" * V "longstring") +
+  comment = C(P "--" * V "longstring" * NEWLINE) +
             C(P "--" * (P(1) - P "\n")^0 * (P "\n" + -P(1)));
 
-  space = ((((locale.space - P "\n") * P "\n")^2 * Cc "\n\n") + locale.space + V "comment")^0;
+  space = (locale.space + V "comment")^0;
 
   -- Types and Comments
 
