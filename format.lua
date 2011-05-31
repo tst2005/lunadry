@@ -48,8 +48,8 @@ local lua = {
 
   -- longstrings
 
-  longstring = P { -- from Roberto Ierusalimschy's lpeg examples
-    (V "open" * (P(1) - V "closeeq")^0 * V "close") / function () end,
+  longstring = C { -- from Roberto Ierusalimschy's lpeg examples
+    lpeg.Cmt((V "open" * (P(1) - V "closeeq")^0 * V "close"), function (s, i, ...) return true end);
 
     open = "[" * Cg((P "=")^0, "init") * P "[" * (P "\n")^-1;
     close = "]" * C((P "=")^0) * "]";
@@ -58,22 +58,20 @@ local lua = {
 
   -- comments & whitespace
 
-  comment = C(P "--" * V "longstring" * NEWLINE) +
-            C(P "--" * (P(1) - P "\n")^0 * (P "\n" + -P(1)));
+  comment = C "--" * V "longstring" * NEWLINE +
+            C "--" * (C(1) - P "\n")^0 * (C "\n" + -P(1));
 
   space = (locale.space + INDENT * V "comment")^0;
 
   -- Types and Comments
 
-  Name = C((locale.alpha + P "_") * (locale.alnum + P "_")^0 - V "keywords");
-  Number = C((P "-")^-1 * V "space" * P "0x" * locale.xdigit^1 * -(locale.alnum + P "_") +
-             (P "-")^-1 * V "space" * locale.digit^1 * (P "." * locale.digit^1)^-1 * (S "eE" * (P "-")^-1 * locale.digit^1)^-1 * -(locale.alnum + P "_") +
-             (P "-")^-1 * V "space" * P "." * locale.digit^1 * (S "eE" * (P "-")^-1 * locale.digit^1)^-1 * -(locale.alnum + P "_")
-            );
-  String = C(P "\"" * (P "\\" * P(1) + (1 - P "\""))^0 * P "\"" +
-             P "'" * (P "\\" * P(1) + (1 - P "'"))^0 * P "'" +
-             V "longstring"
-            );
+  Name = C(locale.alpha + P "_") * C(locale.alnum + P "_")^0 - V "keywords";
+  Number = C((P "-")^-1 * V "space" * P "0x" * locale.xdigit^1 * -(locale.alnum + P "_")) +
+           C((P "-")^-1 * V "space" * locale.digit^1 * (P "." * locale.digit^1)^-1 * (S "eE" * (P "-")^-1 * locale.digit^1)^-1 * -(locale.alnum + P "_")) +
+           C((P "-")^-1 * V "space" * P "." * locale.digit^1 * (S "eE" * (P "-")^-1 * locale.digit^1)^-1 * -(locale.alnum + P "_"));
+  String = C(P "\"" * (P "\\" * P(1) + (1 - P "\""))^0 * P "\"") +
+           C(P "'" * (P "\\" * P(1) + (1 - P "'"))^0 * P "'") +
+           V "longstring";
 
   -- Lua Complete Syntax
 
@@ -195,6 +193,8 @@ local lua = {
 local function cat (s, i, ...)
   return true, table.concat({...});
 end
+--lua.stat = Cmt(lua.stat, cat)
+--lua.chunk = Cmt(lua.chunk, cat)
 for k, v in pairs(lua) do
   lua[k] = Cmt(v, cat);
 end
