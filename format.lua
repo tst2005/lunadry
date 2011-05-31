@@ -1,3 +1,4 @@
+
 local lpeg = require "lpeg";
 
 local locale = lpeg.locale();
@@ -13,6 +14,26 @@ local Cg = lpeg.Cg;
 local Cs = lpeg.Cs;
 local Cmt = lpeg.Cmt;
 
+local NEWLINE = Cc "\n";
+local i = 0;
+local function increase (p)
+  i = i+1;
+end
+local function decrease (p)
+  i = i-1;
+end
+local function indent (p)
+  return Cc(("  "):rep(i)); -- two spaces
+end
+local INDENT = Cmt(true, indent);
+local INDENT_DECREASE_TRUE = Cmt(true, function (s, i, ...) i = i-1; return true; end);
+local INDENT_DECREASE_FALSE = Cmt(true, function (s, i, ...) i = i-1; return false; end);
+local function INDENT_INCREASE (p)
+  i = i+1;
+  return (NEWLINE * p * INDENT_DECREASE_TRUE) + INDENT_DECREASE_FALSE;
+end
+local SPACE = Cc " ";
+
 local shebang = P "#" * (P(1) - P "\n")^0 * P "\n";
 
 dispatch = setmetatable({}, {__index = function() return print end});
@@ -26,11 +47,11 @@ local function event (what, patt)
 end
 
 local function K (k) -- keyword
-  return P(k) * -(locale.alnum + P "_");
+  return C(k) * -(locale.alnum + P "_");
 end
 
 local lua = {
-  (shebang)^-1 * V "space" * V "chunk" * V "space" * -P(1);
+  C(shebang)^-1 * V "space" * V "chunk" * V "space" * -P(1);
 
   -- keywords
 
@@ -41,7 +62,7 @@ local lua = {
 
   -- longstrings
 
-  longstring = P { -- from Roberto Ierusalimschy's lpeg examples
+  longstring = C { -- from Roberto Ierusalimschy's lpeg examples
     V "open" * C((P(1) - V "closeeq")^0) * V "close" / function (o, s) return s end;
 
     open = "[" * Cg((P "=")^0, "init") * P "[" * (P "\n")^-1;
@@ -51,47 +72,49 @@ local lua = {
 
   -- comments & whitespace
 
-  comment = P "--" * V "longstring" +
-            P "--" * (P(1) - P "\n")^0 * (P "\n" + -P(1));
+  comment = C(P "--" * V "longstring") +
+            C(P "--" * (P(1) - P "\n")^0 * (P "\n" + -P(1)));
 
   space = (locale.space + V "comment")^0;
 
   -- Types and Comments
 
-  Name = (locale.alpha + P "_") * (locale.alnum + P "_")^0 - V "keywords";
-  Number = (P "-")^-1 * V "space" * P "0x" * locale.xdigit^1 * -(locale.alnum + P "_") +
-           (P "-")^-1 * V "space" * locale.digit^1 * (P "." * locale.digit^1)^-1 * (S "eE" * (P "-")^-1 * locale.digit^1)^-1 * -(locale.alnum + P "_") +
-           (P "-")^-1 * V "space" * P "." * locale.digit^1 * (S "eE" * (P "-")^-1 * locale.digit^1)^-1 * -(locale.alnum + P "_");
-  String = P "\"" * (P "\\" * P(1) + (1 - P "\""))^0 * P "\"" +
-           P "'" * (P "\\" * P(1) + (1 - P "'"))^0 * P "'" +
-           V "longstring";
+  Name = C((locale.alpha + P "_") * (locale.alnum + P "_")^0 - V "keywords");
+  Number = C((P "-")^-1 * V "space" * P "0x" * locale.xdigit^1 * -(locale.alnum + P "_") +
+             (P "-")^-1 * V "space" * locale.digit^1 * (P "." * locale.digit^1)^-1 * (S "eE" * (P "-")^-1 * locale.digit^1)^-1 * -(locale.alnum + P "_") +
+             (P "-")^-1 * V "space" * P "." * locale.digit^1 * (S "eE" * (P "-")^-1 * locale.digit^1)^-1 * -(locale.alnum + P "_");
+            )
+  String = C(P "\"" * (P "\\" * P(1) + (1 - P "\""))^0 * P "\"" +
+             P "'" * (P "\\" * P(1) + (1 - P "'"))^0 * P "'" +
+             V "longstring";
+            )
 
   -- Lua Complete Syntax
 
   --chunk = (V "space" * V "stat" * (V "space" * event("semicolon", ";"))^-1)^0 * (V "space" * V "laststat" * (V "space" * event("semicolon", ";"))^-1)^-1;
-  chunk = (V "space" * V "stat" * (V "space" * P ";")^-1)^0 * (V "space" * V "laststat" * (V "space" * P ";")^-1)^-1;
+  chunk = (V "space" * V "stat" * (V "space" * P ";")^-1 * NEWLINE)^0 * (V "space" * V "laststat" * (V "space" * P ";")^-1 * NEWLINE)^-1;
 
   block = V "chunk";
 
-  stat = K "do" * V "space" * V "block" * V "space" * K "end" +
-         K "while" * V "space" * V "exp" * V "space" * K "do" * V "space" * V "block" * V "space" * K "end" +
-         K "repeat" * V "space" * V "block" * V "space" * K "until" * V "space" * V "exp" +
-         K "if" * V "space" * V "exp" * V "space" * K "then" * V "space" * V "block" * V "space" * (K "elseif" * V "space" * V "exp" * V "space" * K "then" * V "space" * V "block" * V "space")^0 * (K "else" * V "space" * V "block" * V "space")^-1 * K "end" +
-         K "for" * V "space" * V "Name" * V "space" * P "=" * V "space" * V "exp" * V "space" * P "," * V "space" * V "exp" * (V "space" * P "," * V "space" * V "exp")^-1 * V "space" * K "do" * V "space" * V "block" * V "space" * K "end" +
-         K "for" * V "space" * V "namelist" * V "space" * K "in" * V "space" * V "explist" * V "space" * K "do" * V "space" * V "block" * V "space" * K "end" +
-         K "function" * V "space" * V "funcname" * V "space" *  V "funcbody" +
-         K "local" * V "space" * K "function" * V "space" * V "Name" * V "space" * V "funcbody" +
-         K "local" * V "space" * V "namelist" * (V "space" * P "=" * V "space" * V "explist")^-1 +
-         V "varlist" * V "space" * P "=" * V "space" * V "explist" +
-         V "functioncall";
+  stat = INDENT * K "do" * INDENT_INCREASE(V "space" * V "block" * V "space") * INDENT * K "end" * NEWLINE +
+         INDENT * K "while" * SPACE * V "space" * V "exp" * V "space" * SPACE * K "do" * INDENT_INCREASE(V "space" * V "block" * V "space") * INDENT * K "end" * NEWLINE +
+         INDENT * K "repeat" * INDENT_INCREASE(V "space" * V "block" * V "space") * INDENT * K "until" * SPACE * V "space" * V "exp" * NEWLINE +
+         INDENT * K "if" * SPACE * V "space" * V "exp" * V "space" * SPACE * K "then" * INDENT_INCREASE(V "space" * V "block" * V "space") * (K "elseif" * SPACE * V "space" * V "exp" * V "space" * SPACE * K "then" * SPACE * INDENT_INCREASE(V "space" * V "block" * V "space"))^0 * (K "else" * SPACE * INDENT_INCREASE(V "space" * V "block" * V "space"))^-1 * INDENT * K "end" * NEWLINE +
+         INDENT * K "for" * SPACE * V "space" * V "Name" * V "space" * SPACE * C "=" * SPACE * V "space" * V "exp" * V "space" * C "," * SPACE * V "space" * V "exp" * (V "space" * C "," * SPACE * V "space" * V "exp")^-1 * V "space" * K "do" * INDENT_INCREASE(V "space" * V "block" * V "space") * INDENT * K "end" * NEWLINE +
+         INDENT * K "for" * SPACE * V "space" * V "namelist" * V "space" * K "in" * V "space" * V "explist" * V "space" * K "do" * INDENT_INCREASE(V "space" * V "block" * V "space") * INDENT * K "end" * NEWLINE +
+         INDENT * K "function" * SPACE * V "space" * V "funcname" * V "space" *  SPACE * V "funcbody" * NEWLINE +
+         INDENT * K "local" * SPACE * V "space" * K "function" * V "space" * V "Name" * V "space" * SPACE * V "funcbody" * NEWLINE +
+         INDENT * K "local" * SPACE * V "space" * V "namelist" * (V "space" * C "=" * V "space" * V "explist")^-1 * NEWLINE +
+         INDENT * V "varlist" * SPACE * V "space" * C "=" * SPACE * V "space" * V "explist" * NEWLINE +
+         INDENT * V "functioncall" * NEWLINE;
 
-  laststat = K "return" * (V "space" * V "explist")^-1 + K "break";
+  laststat = INDENT * (K "return" * (SPACE * V "space" * V "explist")^-1 + K "break") * NEWLINE;
 
-  funcname = V "Name" * (V "space" * P "." * V "space" * V "Name")^0 * (V "space" * P ":" * V "space" * V "Name")^-1;
+  funcname = V "Name" * (V "space" * C "." * V "space" * V "Name")^0 * (V "space" * C ":" * V "space" * V "Name")^-1;
 
-  namelist = V "Name" * (V "space" * P "," * V "space" * V "Name")^0;
+  namelist = V "Name" * (V "space" * C "," * SPACE * V "space" * V "Name")^0;
 
-  varlist = V "var" * (V "space" * P "," * V "space" * V "var")^0;
+  varlist = V "var" * (V "space" * C "," * SPACE * V "space" * V "var")^0;
 
   -- Let's come up with a syntax that does not use left recursion (only listing changes to Lua 5.1 extended BNF syntax)
   -- value ::= nil | false | true | Number | String | '...' | function | tableconstructor | functioncall | var | '(' exp ')'
@@ -109,25 +132,25 @@ local lua = {
           K "true" +
           V "Number" +
           V "String" +
-          P "..." +
+          C "..." +
           V "function" +
           V "tableconstructor" +
           V "functioncall" +
           V "var" +
-          P "(" * V "space" * V "exp" * V "space" * P ")";
+          C "(" * V "space" * V "exp" * V "space" * C ")";
 
   -- An expression operates on values to produce a new value or is a value
   exp = V "unop" * V "space" * V "exp" +
         V "value" * (V "space" * V "binop" * V "space" * V "exp")^-1;
 
   -- Index and Call
-  index = P "[" * V "space" * V "exp" * V "space" * P "]" +
-          P "." * V "space" * V "Name";
+  index = C "[" * V "space" * V "exp" * V "space" * C "]" +
+          C "." * V "space" * V "Name";
   call = V "args" +
-         P ":" * V "space" * V "Name" * V "space" * V "args";
+         C ":" * V "space" * V "Name" * V "space" * V "args";
 
   -- A Prefix is a the leftmost side of a var(iable) or functioncall
-  prefix = P "(" * V "space" * V "exp" * V "space" * P ")" +
+  prefix = C "(" * V "space" * V "exp" * V "space" * C ")" +
            V "Name";
   -- A Suffix is a Call or Index
   suffix = V "call" +
@@ -137,48 +160,48 @@ local lua = {
         V "Name";
   functioncall = V "prefix" * (V "space" * V "suffix" * #(V "space" * V "suffix"))^0 * V "space" * V "call";
 
-  explist = V "exp" * (V "space" * P "," * V "space" * V "exp")^0;
+  explist = V "exp" * (V "space" * C "," * SPACE * V "space" * V "exp")^0;
 
-  args = P "(" * V "space" * (V "explist" * V "space")^-1 * P ")" +
+  args = C "(" * V "space" * (V "explist" * V "space")^-1 * C ")" +
          V "tableconstructor" +
          V "String";
 
-  ["function"] = K "function" * V "space" * V "funcbody";
+  ["function"] = K "function" * SPACE * V "space" * V "funcbody";
 
-  funcbody = P "(" * V "space" * (V "parlist" * V "space")^-1 * P ")" * V "space" *  V "block" * V "space" * K "end";
+  funcbody = C "(" * V "space" * (V "parlist" * V "space")^-1 * C ")" * V "space" *  V "block" * V "space" * K "end";
 
-  parlist = V "namelist" * (V "space" * P "," * V "space" * P "...")^-1 +
-            P "...";
+  parlist = V "namelist" * (V "space" * C "," * V "space" * C "...")^-1 +
+            C "...";
 
-  tableconstructor = P "{" * V "space" * (V "fieldlist" * V "space")^-1 * P "}";
+  tableconstructor = C "{" * V "space" * (V "fieldlist" * V "space")^-1 * C "}";
 
   fieldlist = V "field" * (V "space" * V "fieldsep" * V "space" * V "field")^0 * (V "space" * V "fieldsep")^-1;
 
-  field = P "[" * V "space" * V "exp" * V "space" * P "]" * V "space" * P "=" * V "space" * V "exp" +
-          V "Name" * V "space" * P "=" * V "space" * V "exp" +
+  field = C "[" * V "space" * V "exp" * V "space" * C "]" * V "space" * C "=" * V "space" * V "exp" +
+          V "Name" * V "space" * C "=" * V "space" * V "exp" +
           V "exp";
 
-  fieldsep = P "," +
-             P ";";
+  fieldsep = C "," +
+             P ";" * Cc ","; -- use only commas
 
   binop = K "and" + -- match longest token sequences first
           K "or" +
-          P ".." +
-          P "<=" +
-          P ">=" +
-          P "==" +
-          P "~=" +
-          P "+" +
-          P "-" +
-          P "*" +
-          P "/" +
-          P "^" +
-          P "%" +
-          P "<" +
-          P ">";
+          C ".." +
+          C "<=" +
+          C ">=" +
+          C "==" +
+          C "~=" +
+          C "+" +
+          C "-" +
+          C "*" +
+          C "/" +
+          C "^" +
+          C "%" +
+          C "<" +
+          C ">";
 
-  unop = P "-" +
-         P "#" +
+  unop = C "-" +
+         C "#" +
          K "not";
 };
 
@@ -198,8 +221,13 @@ function indent (file, dispatch_table)
 
   local lua = P(lua);
 
-  print("Lua:", loadfile(file));
-  print("LPeg:", lua:match(assert(io.open(file, "r"):read("*a"))));
+  local source = io.open(file, "r"):read "*a";
+  --print("Lua:", loadfile(file));
+  --print("LPeg:", lua:match(assert(io.open(file, "r"):read("*a"))));
+  local t = {lua:match(source)};
+  return table.concat(t);
 end
 
-indent(arg[1])
+local indented = indent(arg[1])
+
+io.write(indented)
