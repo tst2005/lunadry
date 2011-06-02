@@ -68,7 +68,7 @@ local lua = {
   comment = V "multi_line_comment" + V "one_line_comment";
 
   shorten_comment = V "multi_line_comment" +
-                    C "--" * Cc "[[ " * (locale.space - P "\n")^0 * (C(1) - P "\n")^0 * (P "\n" - P(1)) * Cc " ]]"; -- change one-line comment to multi-line comment so it doesn't need line terminator
+                    C "--" * Cc "[[ " * (locale.space - P "\n")^0 * (C(1) - P "\n")^0 * (P "\n" + -P(1)) * Cc " ]]"; -- change one-line comment to multi-line comment so it doesn't need line terminator
 
   space = (locale.space + (#V "shorten_comment" * SPACE * V "shorten_comment" * SPACE))^0; -- match comment before indenting (lpeg limitation)
   space_after_stat = ((locale.space - P "\n")^0 * (P ";")^-1 * (locale.space - P "\n")^0 * SPACE * V "one_line_comment") +
@@ -196,7 +196,7 @@ local lua = {
           SPACE * C "<" * SPACE +
           SPACE * C ">" * SPACE;
 
-  unop = C "-" +
+  unop = (C "-" - P "--") +
          C "#" +
          K "not" * SPACE;
 };
