@@ -1,0 +1,10 @@
+#!/bin/bash
+
+FILE=$1
+OUT=$(basename "$FILE").out
+
+set -e
+
+lua format.lua $1 > "$OUT"
+
+diff <(luac -s "$FILE") <(luac -s "$OUT")
