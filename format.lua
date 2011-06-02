@@ -17,6 +17,10 @@ local Cs = lpeg.Cs;
 local Cmt = lpeg.Cmt;
 local Cf = lpeg.Cf;
 
+local function cat (a, b)
+  return a..b;
+end
+
 local NEWLINE = Cc "\n";
 local n = 0;
 local function indent (s, i, ...)
@@ -38,7 +42,7 @@ local function K (k) -- keyword
 end
 
 local lua = {
-  C(shebang)^-1 * V "space" * V "chunk" * V "space" * -P(1);
+  C(shebang)^-1 * V "filler" * V "chunk" * V "filler" * -P(1);
 
   -- keywords
 
@@ -50,7 +54,7 @@ local lua = {
   -- longstrings
 
   longstring = C { -- from Roberto Ierusalimschy's lpeg examples
-    lpeg.Cmt((V "open" * (P(1) - V "closeeq")^0 * V "close"), function (s, i, ...) return true end);
+    (V "open" * (P(1) - V "closeeq")^0 * V "close") / function (...) return end;
 
     open = "[" * Cg((P "=")^0, "init") * P "[" * (P "\n")^-1;
     close = "]" * C((P "=")^0) * "]";
@@ -59,10 +63,18 @@ local lua = {
 
   -- comments & whitespace
 
-  comment = C "--" * V "longstring" * NEWLINE +
-            C "--" * (C(1) - P "\n")^0 * (C "\n" + -P(1));
+  one_line_comment = C "--" * (C(1) - P "\n")^0 * (C "\n" + -P(1));
+  multi_line_comment = C "--" * V "longstring";
+  comment = V "multi_line_comment" + V "one_line_comment";
 
-  space = (locale.space + INDENT * V "comment")^0;
+  shorten_comment = V "multi_line_comment" +
+                    C "--" * Cc "[[ " * (locale.space - P "\n")^0 * (C(1) - P "\n")^0 * (P "\n" - P(1)) * Cc " ]]"; -- change one-line comment to multi-line comment so it doesn't need line terminator
+
+  space = (locale.space + (#V "shorten_comment" * SPACE * V "shorten_comment" * SPACE))^0; -- match comment before indenting (lpeg limitation)
+  space_after_stat = ((locale.space - P "\n")^0 * (P ";")^-1 * (locale.space - P "\n")^0 * SPACE * V "one_line_comment") +
+                     (V "space" * P ";")^-1 * NEWLINE;
+
+  filler = ((((locale.space - P "\n")^0 * P "\n")^2 * Cc "\n" + (locale.space + (#V "comment" * INDENT * V "comment" * (C "\n")^-1)))^0) + V "space";
 
   -- Types and Comments
 
@@ -76,20 +88,20 @@ local lua = {
 
   -- Lua Complete Syntax
 
-  chunk = (V "space" * INDENT * V "stat" * (V "space" * P ";")^-1 * NEWLINE)^0 * (V "space" * INDENT * V "laststat" * (V "space" * P ";")^-1 * NEWLINE)^-1;
+  chunk = (V "filler" * INDENT * V "stat" * V "space_after_stat")^0 * (V "filler" * INDENT * V "laststat" * V "space_after_stat")^-1;
 
   block = V "chunk";
 
-  stat = K "do" * INDENT_INCREASE(V "space" * V "block" * V "space") * INDENT * K "end" +
-         K "while" * SPACE * V "space" * V "exp" * V "space" * SPACE * K "do" * INDENT_INCREASE(V "space" * V "block" * V "space") * INDENT * K "end" +
-         K "repeat" * INDENT_INCREASE(V "space" * V "block" * V "space") * INDENT * K "until" * SPACE * V "space" * V "exp" +
-         K "if" * SPACE * V "space" * V "exp" * V "space" * SPACE * K "then" * INDENT_INCREASE(V "space" * V "block" * V "space") * (K "elseif" * SPACE * V "space" * V "exp" * V "space" * SPACE * K "then" * SPACE * INDENT_INCREASE(V "space" * V "block" * V "space"))^0 * (K "else" * SPACE * INDENT_INCREASE(V "space" * V "block" * V "space"))^-1 * INDENT * K "end" +
-         K "for" * SPACE * V "space" * V "Name" * V "space" * SPACE * C "=" * SPACE * V "space" * V "exp" * V "space" * C "," * SPACE * V "space" * V "exp" * (V "space" * C "," * SPACE * V "space" * V "exp")^-1 * V "space" * K "do" * INDENT_INCREASE(V "space" * V "block" * V "space") * INDENT * K "end" +
-         K "for" * SPACE * V "space" * V "namelist" * V "space" * K "in" * V "space" * V "explist" * V "space" * K "do" * INDENT_INCREASE(V "space" * V "block" * V "space") * INDENT * K "end" +
+  stat = K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
+         K "while" * SPACE * V "space" * V "exp" * V "space" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
+         K "repeat" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "until" * SPACE * V "space" * V "exp" +
+         K "if" * SPACE * V "space" * V "exp" * V "space" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * (INDENT * K "elseif" * SPACE * V "space" * V "exp" * V "space" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^0 * (INDENT * K "else" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^-1 * INDENT * K "end" +
+         K "for" * SPACE * V "space" * V "Name" * V "space" * SPACE * C "=" * SPACE * V "space" * V "exp" * V "space" * C "," * SPACE * V "space" * V "exp" * (V "space" * C "," * SPACE * V "space" * V "exp")^-1 * V "space" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
+         K "for" * SPACE * V "space" * V "namelist" * V "space" * SPACE * K "in" * SPACE * V "space" * V "explist" * V "space" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
          K "function" * SPACE * V "space" * V "funcname" * SPACE * V "space" * V "funcbody" +
          K "local" * SPACE * V "space" * K "function" * SPACE * V "space" * V "Name" * V "space" * SPACE * V "funcbody" +
          K "local" * SPACE * V "space" * V "namelist" * (SPACE * V "space" * C "=" * SPACE * V "space" * V "explist")^-1 +
-         V "varlist" * SPACE * V "space" * C "=" * SPACE * V "space" * V "explist" +
+         V "varlist" * V "space" * SPACE * C "=" * SPACE * V "space" * V "explist" +
          V "functioncall";
 
   laststat = K "return" * (SPACE * V "space" * V "explist")^-1 + K "break";
@@ -152,14 +164,14 @@ local lua = {
 
   ["function"] = K "function" * SPACE * V "space" * V "funcbody";
 
-  funcbody = C "(" * V "space" * (V "parlist" * V "space")^-1 * C ")" * INDENT_INCREASE(V "space" *  V "block" * V "space") * INDENT * K "end";
+  funcbody = C "(" * V "space" * (V "parlist" * V "space")^-1 * C ")" * V "space" * INDENT_INCREASE(V "block" * V "space") * INDENT * K "end";
 
   parlist = V "namelist" * (V "space" * C "," * V "space" * C "...")^-1 +
             C "...";
 
-  tableconstructor = C "{" * V "space" * INDENT_INCREASE((V "fieldlist" * V "space")^-1) * INDENT * C "}";
+  tableconstructor = C "{" * V "filler" * (INDENT_INCREASE(V "fieldlist" * V "filler") * INDENT)^-1 * C "}";
 
-  fieldlist = INDENT * V "field" * (V "space" * V "fieldsep" * V "space" * NEWLINE * INDENT * V "field")^0 * (V "space" * V "fieldsep" * NEWLINE)^-1;
+  fieldlist = INDENT * V "field" * (V "space" * V "fieldsep" * V "filler" * NEWLINE * INDENT * V "field")^0 * (V "space" * V "fieldsep")^-1 * NEWLINE;
 
   field = C "[" * V "space" * V "exp" * V "space" * C "]" * SPACE * V "space" * C "=" * SPACE * V "space" * V "exp" +
           V "Name" * SPACE * V "space" * C "=" * SPACE * V "space" * V "exp" +
@@ -176,7 +188,7 @@ local lua = {
           SPACE * C "==" * SPACE +
           SPACE * C "~=" * SPACE +
           SPACE * C "+" * SPACE +
-          SPACE * C "-" * SPACE +
+          SPACE * (C "-" - P "--") * SPACE +
           SPACE * C "*" * SPACE +
           SPACE * C "/" * SPACE +
           C "^" + -- no space for power
@@ -203,7 +215,7 @@ _G.lua = lua
 function indent (file, dispatch_table)
   file = type(file == "string") and file or nil;
 
-  local lua = Cf(lua, function(a,b) return a..b end);
+  local lua = Cf(lua, cat);
 
   local source = io.open(file, "r"):read "*a";
 
