@@ -7,4 +7,25 @@ set -e
 
 lua format.lua $1 > "$OUT"
 
-diff <(luac -l -p "$FILE" | awk '{ if ($1 ~ /^[0-9]+$/) { print $1, $3, $4, $5, $6, $7, $8 } }' | grep --invert-match CLOSURE) <(luac -l -p "$OUT" | awk '{ if ($1 ~ /^[0-9]+$/) { print $1, $3, $4, $5, $6, $7, $8 } }' | grep --invert-match CLOSURE)
+# batrick@batbytes:~$ luac -l -p -
+# foo = function () end
+#
+# main <stdin:0,0> (3 instructions, 12 bytes at 0x172c230)
+# 0+ params, 2 slots, 0 upvalues, 0 locals, 1 constant, 1 function
+#         1       [1]     CLOSURE         0 0     ; 0x172c410
+#         2       [1]     SETGLOBAL       0 -1    ; foo
+#         3       [1]     RETURN          0 1
+#
+# function <stdin:1,1> (1 instruction, 4 bytes at 0x172c410)
+# 0 params, 2 slots, 0 upvalues, 0 locals, 0 constants, 0 functions
+#        1       [1]     RETURN          0 1
+#
+# We filter out everything but the opcodes and the lines specifying the
+# function statistics (# of parameters, upvalues, etc.). We also remove CLOSURE
+# opcodes because they include a runtime pointer address which changes across
+# luac invocations.
+function filter {
+  grep --invert-match -E "^function|main" | grep --invert-match "^[[:space:]]*$" | grep --invert-match CLOSURE | cut -f 2,4-
+}
+
+diff <(luac -l -p "$FILE" | filter) <(luac -l -p "$OUT" | filter)
