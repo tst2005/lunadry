@@ -6,4 +6,4 @@ all:
 clean:
 	cd lua && make clean
 	cd lpeg && rm lpeg.so
-	rm -rf root && mkdir root
+	rm -rf root/*
