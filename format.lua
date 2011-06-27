@@ -68,6 +68,7 @@ local lua = {
   -- comments & whitespace
 
   one_line_comment = C "--" * (C(1) - P "\n")^0 * (C "\n" + -P(1));
+  one_line_comment_newline = C "--" * (C(1) - P "\n")^0 * (#P "\n" + -P(1)) * Cc "\n";
   multi_line_comment = C "--" * V "longstring";
   comment = V "multi_line_comment" + V "one_line_comment";
 
@@ -76,7 +77,7 @@ local lua = {
                     V "one_line_comment" * INDENT;
 
   space = (locale.space + (#V "shorten_comment" * SPACE * V "shorten_comment" * SPACE))^0; -- match comment before indenting (lpeg limitation)
-  space_after_stat = ((locale.space - P "\n")^0 * (P ";")^-1 * (locale.space - P "\n")^0 * SPACE * V "one_line_comment") +
+  space_after_stat = ((locale.space - P "\n")^0 * (P ";")^-1 * (locale.space - P "\n")^0 * SPACE * V "one_line_comment_newline") +
                      (V "space" * P ";")^-1 * NEWLINE;
 
   filler = ((((locale.space - P "\n")^0 * P "\n")^2 * Cc "\n" + (locale.space + (#V "comment" * INDENT * V "comment" * (C "\n")^-1)))^0) + V "space";
@@ -93,7 +94,7 @@ local lua = {
 
   -- Lua Complete Syntax
 
-  chunk = (V "filler" * INDENT * V "stat" * V "space_after_stat")^0 * (V "filler" * INDENT * V "laststat" * V "space_after_stat")^-1;
+  chunk = (V "filler" * INDENT * V "stat" * Cc ";" * V "space_after_stat")^0 * (V "filler" * INDENT * V "laststat" * Cc ";" * V "space_after_stat")^-1;
 
   block = V "chunk";
 
