@@ -5,5 +5,5 @@ all:
 
 clean:
 	cd lua && make clean
-	cd lpeg && rm lpeg.so
+	cd lpeg && rm -f lpeg.so
 	rm -rf root/*
