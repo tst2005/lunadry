@@ -1,7 +1,7 @@
 LIBNAME = lpeg
 LUADIR = $(PWD)/../root/include
 
-COPT = -O2 -DNDEBUG
+COPT = -O2 -DNDEBUG -fPIC
 
 CWARNS = -Wall -Wextra -pedantic \
         -Waggregate-return \
