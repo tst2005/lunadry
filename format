@@ -6,10 +6,11 @@ OUT=$(basename "$FILE").out
 
 set -e
 
-CPATH="$DIR/?.so"
-LPATH="$DIR/?.lua"
+CPATH="$DIR/root/lib/lua/5.2/?.so"
+LPATH="$DIR/root/lib/lua/5.2/?.lua"
 
-export LUA_INIT="package.cpath = \"$CPATH\"..package.cpath; package.path = \"$LPATH\"..package.path;"
+export LUA_INIT="package.cpath = \"$CPATH;\"..package.cpath; package.path = \"$LPATH;\"..package.path;"
+echo $LUA_INIT
 "$DIR"/lua/src/lua format.lua $1 > "$OUT"
 
 # batrick@batbytes:~$ luac -l -p -
