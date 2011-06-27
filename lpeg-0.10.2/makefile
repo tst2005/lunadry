@@ -1,5 +1,5 @@
 LIBNAME = lpeg
-LUADIR = /usr/include/lua5.1/
+LUADIR = $(PWD)/../root/include
 
 COPT = -O2 -DNDEBUG
 
