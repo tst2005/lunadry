@@ -1,11 +1,16 @@
 #!/bin/bash
 
+DIR=$(dirname "$0")
 FILE=$1
 OUT=$(basename "$FILE").out
 
 set -e
 
-lua format.lua $1 > "$OUT"
+CPATH="$DIR/?.so"
+LPATH="$DIR/?.lua"
+
+export LUA_INIT="package.cpath = \"$CPATH\"..package.cpath; package.path = \"$LPATH\"..package.path;"
+"$DIR"/lua/src/lua format.lua $1 > "$OUT"
 
 # batrick@batbytes:~$ luac -l -p -
 # foo = function () end
