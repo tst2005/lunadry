@@ -30,8 +30,12 @@ local INDENT = Cmt(true, indent);
 local INDENT_INCREASE_TRUE = Cmt(true, function (s, i, ...) n = n+1; return true; end);
 local INDENT_DECREASE_TRUE = Cmt(true, function (s, i, ...) n = n-1; return true; end);
 local INDENT_DECREASE_FALSE = Cmt(true, function (s, i, ...) n = n-1; return false; end);
-local function INDENT_INCREASE (p)
-  return INDENT_INCREASE_TRUE * NEWLINE * p * INDENT_DECREASE_TRUE + INDENT_DECREASE_FALSE;
+local function INDENT_INCREASE (p, nonewline)
+  if nonewline then
+    return INDENT_INCREASE_TRUE * p * INDENT_DECREASE_TRUE + INDENT_DECREASE_FALSE;
+  else
+    return INDENT_INCREASE_TRUE * NEWLINE * p * INDENT_DECREASE_TRUE + INDENT_DECREASE_FALSE;
+  end
 end
 local SPACE = Cc " ";
 
@@ -68,7 +72,8 @@ local lua = {
   comment = V "multi_line_comment" + V "one_line_comment";
 
   shorten_comment = V "multi_line_comment" +
-                    C "--" * Cc "[[ " * (locale.space - P "\n")^0 * (C(1) - P "\n")^0 * (P "\n" + -P(1)) * Cc " ]]"; -- change one-line comment to multi-line comment so it doesn't need line terminator
+  --                  C "--" * Cc "[[ " * (locale.space - P "\n")^0 * (C(1) - P "\n")^0 * (P "\n" + -P(1)) * Cc " ]]"; -- change one-line comment to multi-line comment so it doesn't need line terminator
+                    V "one_line_comment" * INDENT;
 
   space = (locale.space + (#V "shorten_comment" * SPACE * V "shorten_comment" * SPACE))^0; -- match comment before indenting (lpeg limitation)
   space_after_stat = ((locale.space - P "\n")^0 * (P ";")^-1 * (locale.space - P "\n")^0 * SPACE * V "one_line_comment") +
@@ -158,15 +163,15 @@ local lua = {
 
   explist = V "exp" * (V "space" * C "," * SPACE * V "space" * V "exp")^0;
 
-  args = C "(" * V "space" * (V "explist" * V "space")^-1 * C ")" +
+  args = C "(" * INDENT_INCREASE(V "space" * (V "explist" * V "space")^-1, true) * C ")" +
          SPACE * V "tableconstructor" +
          SPACE * V "String";
 
   ["function"] = K "function" * SPACE * V "space" * V "funcbody";
 
-  funcbody = C "(" * V "space" * (V "parlist" * V "space")^-1 * C ")" * V "space" * INDENT_INCREASE(V "block" * V "space") * INDENT * K "end";
+  funcbody = C "(" * V "space" * (V "parlist" * V "space")^-1 * C ")" * INDENT_INCREASE(V "block" * V "space") * INDENT * K "end";
 
-  parlist = V "namelist" * (V "space" * C "," * V "space" * C "...")^-1 +
+  parlist = V "namelist" * (V "space" * C "," * SPACE * V "space" * C "...")^-1 +
             C "...";
 
   tableconstructor = C "{" * V "filler" * (INDENT_INCREASE(V "fieldlist" * V "filler") * INDENT)^-1 * C "}";
