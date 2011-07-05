@@ -1,3 +1,7 @@
+#!/usr/local/bin/lua
+
+local require = require;
+local type = type;
 
 local lpeg = require "lpeg";
 
@@ -16,10 +20,6 @@ local Cg = lpeg.Cg;
 local Cs = lpeg.Cs;
 local Cmt = lpeg.Cmt;
 local Cf = lpeg.Cf;
-
-local function cat (a, b)
-  return a..b;
-end
 
 local NEWLINE = Cc "\n";
 local n = 0;
@@ -216,18 +216,17 @@ for k, p in pairs(lua) do
 end
 --]]
 
-_G.lua = lua
+function indent (filename, dispatch_table)
+  local file = type(filename == "string") and io.open(filename) or io.stdin;
+  local source = file:read "*a";
 
-function indent (file, dispatch_table)
-  file = type(file == "string") and file or nil;
-
-  local lua = Cf(lua, cat);
-
-  local source = io.open(file, "r"):read "*a";
+  local lua = Cf(lua, function (a, b) return a..b end);
 
   return lua:match(source);
 end
 
-local indented = indent(arg[1])
+if debug and debug.getinfo and not debug.getinfo(3) then
+  local indented = indent(arg[1])
 
-io.write(indented)
+  io.write(indented)
+end
