@@ -1,7 +1,14 @@
 #!/usr/local/bin/lua
 
+local DEBUG = false;
+
+local assert = assert;
+local pairs = pairs;
 local require = require;
-local type = type;
+
+local io = require "io";
+local read = io.read;
+local write = io.write;
 
 local lpeg = require "lpeg";
 
@@ -207,26 +214,30 @@ local lua = {
          K "not" * SPACE;
 };
 
---[[ debug
-local level = 0;
-for k, p in pairs(lua) do
-  local enter = lpeg.Cmt(lpeg.P(true), function(s, p, ...) io.stdout:write((" "):rep(level*2), "ENTER ", k, ": ", s:sub(p, p), "\n") level = level+1; return true end);
-  local leave = lpeg.Cmt(lpeg.P(true), function(s, p, ...) level = level-1; io.stdout:write((" "):rep(level*2), "LEAVE ", k, "\n") return true end) * (lpeg.P("k") - lpeg.P "k");
-  lua[k] = lpeg.Cmt(enter * p + leave, function(s, p, ...) level = level-1; if k == "space" or k == "comment" then return true end io.stdout:write((" "):rep(level*2), "MATCH ", k, "\n", s:sub(p - 200 < 0 and 1 or p-200, p-1), "\n") return true, ... end)
+if DEBUG then
+  local level = 0;
+  for k, p in pairs(lua) do
+    local enter = lpeg.Cmt(lpeg.P(true), function(s, p, ...)
+      write((" "):rep(level*2), "ENTER ", k, ": ", s:sub(p, p), "\n");
+      level = level+1;
+      return true;
+    end);
+    local leave = lpeg.Cmt(lpeg.P(true), function(s, p, ...)
+      level = level-1;
+      write((" "):rep(level*2), "LEAVE ", k, "\n");
+      return true;
+    end) * (lpeg.P("k") - lpeg.P "k");
+    lua[k] = lpeg.Cmt(enter * p + leave, function(s, p, ...)
+      level = level-1;
+      if k == "space" or k == "comment" then
+        return true;
+      end
+      write((" "):rep(level*2), "MATCH ", k, "\n", s:sub(p - 200 < 0 and 1 or p-200, p-1), "\n");
+      return true, ...;
+    end);
+  end
 end
---]]
 
-function indent (filename, dispatch_table)
-  local file = type(filename == "string") and io.open(filename) or io.stdin;
-  local source = file:read "*a";
+lua = Cf(lua, function (a, b) return a..b end);
 
-  local lua = Cf(lua, function (a, b) return a..b end);
-
-  return lua:match(source);
-end
-
-if debug and debug.getinfo and not debug.getinfo(3) then
-  local indented = indent(arg[1])
-
-  io.write(indented)
-end
+write(assert(lua:match(read "*a")));

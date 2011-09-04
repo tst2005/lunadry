@@ -1,16 +1,39 @@
 #!/bin/bash
 
-DIR=$(dirname "$0")
-FILE=$1
-OUT=$(basename "$FILE").out
+DIRECTORY=$(dirname "$0") # directory of executable
+
+ARGUMENTS='--options i --long in-place --name lua-format'
+IN_PLACE=0
+
+NEW_ARGUMENTS=$(getopt $ARGUMENTS -- "$@")
+
+if [ $? -ne 0 ]; then
+  exit 1
+fi
+
+eval set -- "$NEW_ARGUMENTS"
+
+while [ $# -ge 0 ]; do
+  case "$1" in
+    -i|--in-place)
+      IN_PLACE=1
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+  esac
+done
 
 set -e
 
-CPATH="$DIR/root/lib/lua/5.2/?.so"
-LPATH="$DIR/root/lib/lua/5.2/?.lua"
+CPATH="$DIRECTORY/root/lib/lua/5.2/?.so"
+LPATH="$DIRECTORY/root/lib/lua/5.2/?.lua"
 
 export LUA_INIT="package.cpath = \"$CPATH;\"..package.cpath; package.path = \"$LPATH;\"..package.path;"
-"$DIR"/lua/src/lua format.lua $1 > "$OUT"
+LUA="$DIRECTORY/lua/src/lua"
+LUAC="$DIRECTORY/lua/src/luac"
 
 # batrick@batbytes:~$ luac -l -p -
 # foo = function () end
@@ -29,8 +52,16 @@ export LUA_INIT="package.cpath = \"$CPATH;\"..package.cpath; package.path = \"$L
 # function statistics (# of parameters, upvalues, etc.). We also remove CLOSURE
 # opcodes because they include a runtime pointer address which changes across
 # luac invocations.
+
 function filter {
   grep --invert-match -E "^function|main" | grep --invert-match "^[[:space:]]*$" | grep --invert-match CLOSURE | cut -f 2,4-
 }
 
-diff <(luac -l -p "$FILE" | filter) <(luac -l -p "$OUT" | filter)
+for file do
+  out="${file}.out"
+  "$LUA" "$DIRECTORY/format.lua" < "$file" > "$out"
+  diff <("$LUAC" -l -p "$file" | filter) <("$LUAC" -l -p "$out" | filter)
+  if [ $IN_PLACE -eq 1 ]; then
+    mv -f "$out" "$file"
+  fi
+done
