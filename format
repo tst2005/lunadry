@@ -2,6 +2,20 @@
 
 DIRECTORY=$(dirname "$0") # directory of executable
 
+# testing... ???
+LUA="$DIRECTORY/lua/src/lua"
+LUAC="$DIRECTORY/lua/src/luac"
+if [ ! \( -x "$LUA" -a -x "$LUAC" \) ]; then
+  # use lua found in path...
+  if [ ! \( -x "$(which lua)" -a -x "$(which luac)" \) ]; then
+    echo could not find lua... quitting!
+    exit 1
+  fi
+  LUA=$(which lua)
+  LUAC=$(which luac)
+fi
+
+
 ARGUMENTS='--options i --long in-place --name lua-format'
 IN_PLACE=0
 
@@ -26,14 +40,13 @@ while [ $# -ge 0 ]; do
   esac
 done
 
-set -e
-
+# for testing...
 CPATH="$DIRECTORY/root/lib/lua/5.2/?.so"
 LPATH="$DIRECTORY/root/lib/lua/5.2/?.lua"
 
 export LUA_INIT="package.cpath = \"$CPATH;\"..package.cpath; package.path = \"$LPATH;\"..package.path;"
-LUA="$DIRECTORY/lua/src/lua"
-LUAC="$DIRECTORY/lua/src/luac"
+
+set -e
 
 # batrick@batbytes:~$ luac -l -p -
 # foo = function () end
