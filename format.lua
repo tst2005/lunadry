@@ -74,8 +74,8 @@ local lua = {
 
   -- comments & whitespace
 
-  one_line_comment = C "--" * (C(1) - P "\n")^0 * (C "\n" + -P(1));
-  one_line_comment_newline = C "--" * (C(1) - P "\n")^0 * (#P "\n" + -P(1)) * Cc "\n";
+  all_but_last_space = (C(1) - ((locale.space - P "\n")^0 * (P "\n" + -P(1))))^0 * (locale.space - P "\n")^0 * (C "\n" + -P(1) * Cc "\n");
+  one_line_comment = C "--" * V "all_but_last_space";
   multi_line_comment = C "--" * V "longstring";
   comment = V "multi_line_comment" + V "one_line_comment";
 
@@ -84,7 +84,7 @@ local lua = {
                     V "one_line_comment" * INDENT;
 
   space = (locale.space + (#V "shorten_comment" * SPACE * V "shorten_comment" * SPACE))^0; -- match comment before indenting (lpeg limitation)
-  space_after_stat = ((locale.space - P "\n")^0 * (P ";")^-1 * (locale.space - P "\n")^0 * SPACE * V "one_line_comment_newline") +
+  space_after_stat = ((locale.space - P "\n")^0 * (P ";")^-1 * (locale.space - P "\n")^0 * SPACE * V "one_line_comment") +
                      (V "space" * P ";")^-1 * NEWLINE;
 
   filler = ((((locale.space - P "\n")^0 * P "\n")^2 * Cc "\n" + (locale.space + (#V "comment" * INDENT * V "comment" * (C "\n")^-1)))^0) + V "space";
@@ -101,7 +101,7 @@ local lua = {
 
   -- Lua Complete Syntax
 
-  chunk = (V "filler" * INDENT * V "stat" * Cc ";" * V "space_after_stat")^0 * (V "filler" * INDENT * V "laststat" * Cc ";" * V "space_after_stat")^-1;
+  chunk = (V "filler" * INDENT * V "stat" * V "space_after_stat")^0 * (V "filler" * INDENT * V "laststat" * V "space_after_stat")^-1;
 
   block = V "chunk";
 
@@ -113,11 +113,11 @@ local lua = {
          K "for" * SPACE * V "space" * V "namelist" * V "space" * SPACE * K "in" * SPACE * V "space" * V "explist" * V "space" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
          K "function" * SPACE * V "space" * V "funcname" * SPACE * V "space" * V "funcbody" +
          K "local" * SPACE * V "space" * K "function" * SPACE * V "space" * V "Name" * V "space" * SPACE * V "funcbody" +
-         K "local" * SPACE * V "space" * V "namelist" * (SPACE * V "space" * C "=" * SPACE * V "space" * V "explist")^-1 +
-         V "varlist" * V "space" * SPACE * C "=" * SPACE * V "space" * V "explist" +
-         V "functioncall";
+         K "local" * SPACE * V "space" * V "namelist" * (SPACE * V "space" * C "=" * SPACE * V "space" * V "explist")^-1  * Cc ";" +
+         V "varlist" * V "space" * SPACE * C "=" * SPACE * V "space" * V "explist" * Cc ";" +
+         V "functioncall" * Cc ";";
 
-  laststat = K "return" * (SPACE * V "space" * V "explist")^-1 + K "break";
+  laststat = K "return" * (SPACE * V "space" * V "explist")^-1 * Cc ";" + K "break" * Cc ";";
 
   funcname = V "Name" * (V "space" * C "." * V "space" * V "Name")^0 * (V "space" * C ":" * V "space" * V "Name")^-1;
 
