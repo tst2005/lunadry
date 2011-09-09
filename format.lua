@@ -202,7 +202,7 @@ local lua = {
   parlist = V "namelist" * (V "space" * C "," * SPACE * V "space" * C "...")^-1 +
             C "...";
 
-  tableconstructor = C "{" * (INDENT_INCREASE(V "filler" * V "fieldlist" * V "filler") * INDENT)^-1 * C "}";
+  tableconstructor = C "{" * (INDENT_INCREASE(V "filler" * V "fieldlist" * V "filler") * INDENT + V "filler") * C "}";
 
   fieldlist = INDENT * V "field" * (V "space" * V "fieldsep" * NEWLINE * V "filler" * INDENT * V "field")^0 * (V "space" * V "fieldsep")^-1 * NEWLINE;
 
@@ -260,4 +260,4 @@ end
 
 lua = Cf(lua, function (a, b) return a..b end);
 
-write(assert(lua:match(read "*a")));
+write(assert(lua:match(assert(read "*a"))));
