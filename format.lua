@@ -202,9 +202,9 @@ local lua = {
   parlist = V "namelist" * (V "space" * C "," * SPACE * V "space" * C "...")^-1 +
             C "...";
 
-  tableconstructor = C "{" * V "filler" * (INDENT_INCREASE(V "fieldlist" * V "filler") * INDENT)^-1 * C "}";
+  tableconstructor = C "{" * (INDENT_INCREASE(V "filler" * V "fieldlist" * V "filler") * INDENT)^-1 * C "}";
 
-  fieldlist = INDENT * V "field" * (V "space" * V "fieldsep" * V "filler" * NEWLINE * INDENT * V "field")^0 * (V "space" * V "fieldsep")^-1 * NEWLINE;
+  fieldlist = INDENT * V "field" * (V "space" * V "fieldsep" * NEWLINE * V "filler" * INDENT * V "field")^0 * (V "space" * V "fieldsep")^-1 * NEWLINE;
 
   field = C "[" * V "space" * V "exp" * V "space" * C "]" * SPACE * V "space" * C "=" * SPACE * V "space" * V "exp" +
           V "Name" * SPACE * V "space" * C "=" * SPACE * V "space" * V "exp" +
