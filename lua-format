@@ -92,7 +92,7 @@ function filter {
 
 for file do
   out="${file}.out"
-  "$LUA" "$DIRECTORY/format.lua" < "$file" > "$out"
+  "$LUA" "$DIRECTORY/lua-format.lua" < "$file" > "$out"
   diff <("$LUAC" -l -p "$file" | filter) <("$LUAC" -l -p "$out" | filter)
   if [ $IN_PLACE -eq 1 ]; then
     mv -f "$out" "$file"
