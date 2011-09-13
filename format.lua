@@ -204,7 +204,8 @@ local lua = {
 
   tableconstructor = C "{" * (INDENT_INCREASE(V "filler" * V "fieldlist" * V "filler") * INDENT + V "filler") * C "}";
 
-  fieldlist = INDENT * V "field" * (V "space" * V "fieldsep" * NEWLINE * V "filler" * INDENT * V "field")^0 * (V "space" * V "fieldsep")^-1 * NEWLINE;
+  field_space_after = (locale.space - P "\n")^0 * SPACE * V "one_line_comment";
+  fieldlist = INDENT * V "field" * (V "space" * V "fieldsep" * (V "field_space_after" + NEWLINE) * V "filler" * INDENT * V "field")^0 * (V "space" * V "fieldsep")^-1 * NEWLINE;
 
   field = C "[" * V "space" * V "exp" * V "space" * C "]" * SPACE * V "space" * C "=" * SPACE * V "space" * V "exp" +
           V "Name" * SPACE * V "space" * C "=" * SPACE * V "space" * V "exp" +
