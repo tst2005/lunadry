@@ -113,7 +113,7 @@ local lua = {
 
   Name = C(locale.alpha + P "_") * C(locale.alnum + P "_")^0 - V "keywords";
   Number = C((P "-")^-1 * V "space" * P "0x" * locale.xdigit^1 * -(locale.alnum + P "_")) +
-           C((P "-")^-1 * V "space" * locale.digit^1 * (P "." * locale.digit^1)^-1 * (S "eE" * (P "-")^-1 * locale.digit^1)^-1 * -(locale.alnum + P "_")) +
+           C((P "-")^-1 * V "space" * locale.digit^1 * (P "." * locale.digit^0)^-1 * (S "eE" * (P "-")^-1 * locale.digit^1)^-1 * -(locale.alnum + P "_")) +
            C((P "-")^-1 * V "space" * P "." * locale.digit^1 * (S "eE" * (P "-")^-1 * locale.digit^1)^-1 * -(locale.alnum + P "_"));
   String = C(P "\"" * (P "\\" * P(1) + (1 - P "\""))^0 * P "\"") +
            C(P "'" * (P "\\" * P(1) + (1 - P "'"))^0 * P "'") +
