@@ -1,8 +1,8 @@
 NAME := lua-format
 
 all:
-	cd lua && make linux && make install
-	cd lpeg && make && cp lpeg.so re.lua ../root/lib/lua/5.2/
+	cd lua && $(MAKE) INSTALL_TOP=$(PWD)/root linux install
+	cd lpeg && $(MAKE) && cp lpeg.so re.lua ../root/lib/lua/5.2/
 
 clean:
 	cd lua && make clean
