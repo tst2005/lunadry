@@ -10,5 +10,7 @@ clean:
 	rm -rf root/*
 
 release:
-	D="$$(mktemp -d)" && ln -s "$(PWD)" "$$D/$(NAME)" && cd "$$D" && tar cjf "$(PWD)/$(NAME).tar.bz2" $$(find $(NAME)/ \( -name '.?*' -or -name $(NAME).tar.bz2 \) -prune -or \( -type f -or -type l \) -print) && cd "$(PWD)" && rm -rf "$$D"
-
+	mkdir "$(PWD)/.release"
+	svn export $(PWD) "$(PWD)/.release/$(NAME)"
+	cd "$(PWD)/.release/$(NAME)" && tar cjf "$(PWD)/$(NAME).tar.bz2" .
+	rm -rf "$(PWD)/.release"
