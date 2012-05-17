@@ -34,8 +34,6 @@ local lpeg = require "lpeg";
 
 lpeg.setmaxstack(2000);
 
-local locale = lpeg.locale();
-
 local P = lpeg.P;
 local S = lpeg.S;
 local V = lpeg.V;
@@ -69,10 +67,10 @@ local SPACE = Cc " ";
 local shebang = P "#" * (P(1) - P "\n")^0 * P "\n";
 
 local function K (k) -- keyword
-  return C(k) * -(locale.alnum + P "_");
+  return C(k) * -(V "alnum" + P "_");
 end
 
-local lua = {
+local lua = lpeg.locale {
   C(shebang)^-1 * V "filler" * V "chunk" * V "filler" * -P(1);
 
   -- keywords
@@ -94,27 +92,27 @@ local lua = {
 
   -- comments & whitespace
 
-  all_but_last_space = (C(1) - ((locale.space - P "\n")^0 * (P "\n" + -P(1))))^0 * (locale.space - P "\n")^0 * (C "\n" + -P(1) * Cc "\n");
+  all_but_last_space = (C(1) - ((V "space" - P "\n")^0 * (P "\n" + -P(1))))^0 * (V "space" - P "\n")^0 * (C "\n" + -P(1) * Cc "\n");
   one_line_comment = C "--" * V "all_but_last_space";
   multi_line_comment = C "--" * V "longstring";
   comment = V "multi_line_comment" + V "one_line_comment";
 
   shorten_comment = V "multi_line_comment" +
-  --                  C "--" * Cc "[[ " * (locale.space - P "\n")^0 * (C(1) - P "\n")^0 * (P "\n" + -P(1)) * Cc " ]]"; -- change one-line comment to multi-line comment so it doesn't need line terminator
+  --                  C "--" * Cc "[[ " * (V "space" - P "\n")^0 * (C(1) - P "\n")^0 * (P "\n" + -P(1)) * Cc " ]]"; -- change one-line comment to multi-line comment so it doesn't need line terminator
                     V "one_line_comment" * INDENT;
 
-  space = (locale.space + (#V "shorten_comment" * SPACE * V "shorten_comment" * SPACE))^0; -- match comment before indenting (lpeg limitation)
-  space_after_stat = ((locale.space - P "\n")^0 * (P ";")^-1 * (locale.space - P "\n")^0 * SPACE * V "one_line_comment") +
-                     (V "space" * P ";")^-1 * NEWLINE;
+  whitespace = (V "space" + (#V "shorten_comment" * SPACE * V "shorten_comment" * SPACE))^0; -- match comment before indenting (lpeg limitation)
+  space_after_stat = ((V "space" - P "\n")^0 * (P ";")^-1 * (V "space" - P "\n")^0 * SPACE * V "one_line_comment") +
+                     (V "whitespace" * P ";")^-1 * NEWLINE;
 
-  filler = ((((locale.space - P "\n")^0 * P "\n")^2 * Cc "\n" + (locale.space + (#V "comment" * INDENT * V "comment" * (C "\n")^-1)))^0) + V "space";
+  filler = ((((V "space" - P "\n")^0 * P "\n")^2 * Cc "\n" + (V "space" + (#V "comment" * INDENT * V "comment" * (C "\n")^-1)))^0) + V "whitespace";
 
   -- Types and Comments
 
-  Name = C(locale.alpha + P "_") * C(locale.alnum + P "_")^0 - V "keywords";
-  Number = C((P "-")^-1 * V "space" * P "0x" * locale.xdigit^1 * -(locale.alnum + P "_")) +
-           C((P "-")^-1 * V "space" * locale.digit^1 * (P "." * locale.digit^0)^-1 * (S "eE" * (P "-")^-1 * locale.digit^1)^-1 * -(locale.alnum + P "_")) +
-           C((P "-")^-1 * V "space" * P "." * locale.digit^1 * (S "eE" * (P "-")^-1 * locale.digit^1)^-1 * -(locale.alnum + P "_"));
+  Name = C(V "alpha" + P "_") * C(V "alnum" + P "_")^0 - V "keywords";
+  Number = C((P "-")^-1 * V "whitespace" * P "0x" * V "xdigit"^1 * -(V "alnum" + P "_")) +
+           C((P "-")^-1 * V "whitespace" * V "digit"^1 * (P "." * V "digit"^0)^-1 * (S "eE" * (P "-")^-1 * V "digit"^1)^-1 * -(V "alnum" + P "_")) +
+           C((P "-")^-1 * V "whitespace" * P "." * V "digit"^1 * (S "eE" * (P "-")^-1 * V "digit"^1)^-1 * -(V "alnum" + P "_"));
   String = C(P "\"" * (P "\\" * P(1) + (1 - P "\""))^0 * P "\"") +
            C(P "'" * (P "\\" * P(1) + (1 - P "'"))^0 * P "'") +
            V "longstring";
@@ -126,24 +124,24 @@ local lua = {
   block = V "chunk";
 
   stat = K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
-         K "while" * SPACE * V "space" * V "exp" * V "space" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
-         K "repeat" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "until" * SPACE * V "space" * V "exp" +
-         K "if" * SPACE * V "space" * V "exp" * V "space" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * (INDENT * K "elseif" * SPACE * V "space" * V "exp" * V "space" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^0 * (INDENT * K "else" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^-1 * INDENT * K "end" +
-         K "for" * SPACE * V "space" * V "Name" * V "space" * SPACE * C "=" * SPACE * V "space" * V "exp" * V "space" * C "," * SPACE * V "space" * V "exp" * (V "space" * C "," * SPACE * V "space" * V "exp")^-1 * V "space" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
-         K "for" * SPACE * V "space" * V "namelist" * V "space" * SPACE * K "in" * SPACE * V "space" * V "explist" * V "space" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
-         K "function" * SPACE * V "space" * V "funcname" * SPACE * V "space" * V "funcbody" +
-         K "local" * SPACE * V "space" * K "function" * SPACE * V "space" * V "Name" * V "space" * SPACE * V "funcbody" +
-         K "local" * SPACE * V "space" * V "namelist" * (SPACE * V "space" * C "=" * SPACE * V "space" * V "explist")^-1  * Cc ";" +
-         V "varlist" * V "space" * SPACE * C "=" * SPACE * V "space" * V "explist" * Cc ";" +
+         K "while" * SPACE * V "whitespace" * V "exp" * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
+         K "repeat" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "until" * SPACE * V "whitespace" * V "exp" +
+         K "if" * SPACE * V "whitespace" * V "exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * (INDENT * K "elseif" * SPACE * V "whitespace" * V "exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^0 * (INDENT * K "else" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^-1 * INDENT * K "end" +
+         K "for" * SPACE * V "whitespace" * V "Name" * V "whitespace" * SPACE * C "=" * SPACE * V "whitespace" * V "exp" * V "whitespace" * C "," * SPACE * V "whitespace" * V "exp" * (V "whitespace" * C "," * SPACE * V "whitespace" * V "exp")^-1 * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
+         K "for" * SPACE * V "whitespace" * V "namelist" * V "whitespace" * SPACE * K "in" * SPACE * V "whitespace" * V "explist" * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
+         K "function" * SPACE * V "whitespace" * V "funcname" * SPACE * V "whitespace" * V "funcbody" +
+         K "local" * SPACE * V "whitespace" * K "function" * SPACE * V "whitespace" * V "Name" * V "whitespace" * SPACE * V "funcbody" +
+         K "local" * SPACE * V "whitespace" * V "namelist" * (SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "explist")^-1  * Cc ";" +
+         V "varlist" * V "whitespace" * SPACE * C "=" * SPACE * V "whitespace" * V "explist" * Cc ";" +
          V "functioncall" * Cc ";";
 
-  laststat = K "return" * (SPACE * V "space" * V "explist")^-1 * Cc ";" + K "break" * Cc ";";
+  laststat = K "return" * (SPACE * V "whitespace" * V "explist")^-1 * Cc ";" + K "break" * Cc ";";
 
-  funcname = V "Name" * (V "space" * C "." * V "space" * V "Name")^0 * (V "space" * C ":" * V "space" * V "Name")^-1;
+  funcname = V "Name" * (V "whitespace" * C "." * V "whitespace" * V "Name")^0 * (V "whitespace" * C ":" * V "whitespace" * V "Name")^-1;
 
-  namelist = V "Name" * (V "space" * C "," * SPACE * V "space" * V "Name")^0;
+  namelist = V "Name" * (V "whitespace" * C "," * SPACE * V "whitespace" * V "Name")^0;
 
-  varlist = V "var" * (V "space" * C "," * SPACE * V "space" * V "var")^0;
+  varlist = V "var" * (V "whitespace" * C "," * SPACE * V "whitespace" * V "var")^0;
 
   -- Let's come up with a syntax that does not use left recursion (only listing changes to Lua 5.1 extended BNF syntax)
   -- value ::= nil | false | true | Number | String | '...' | function | tableconstructor | functioncall | var | '(' exp ')'
@@ -166,49 +164,49 @@ local lua = {
           V "tableconstructor" +
           V "functioncall" +
           V "var" +
-          C "(" * V "space" * V "exp" * V "space" * C ")";
+          C "(" * V "whitespace" * V "exp" * V "whitespace" * C ")";
 
   -- An expression operates on values to produce a new value or is a value
-  exp = V "unop" * V "space" * V "exp" +
-        V "value" * (V "space" * V "binop" * V "space" * V "exp")^-1;
+  exp = V "unop" * V "whitespace" * V "exp" +
+        V "value" * (V "whitespace" * V "binop" * V "whitespace" * V "exp")^-1;
 
   -- Index and Call
-  index = C "[" * V "space" * V "exp" * V "space" * C "]" +
-          C "." * V "space" * V "Name";
+  index = C "[" * V "whitespace" * V "exp" * V "whitespace" * C "]" +
+          C "." * V "whitespace" * V "Name";
   call = V "args" +
-         C ":" * V "space" * V "Name" * V "space" * V "args";
+         C ":" * V "whitespace" * V "Name" * V "whitespace" * V "args";
 
   -- A Prefix is a the leftmost side of a var(iable) or functioncall
-  prefix = C "(" * V "space" * V "exp" * V "space" * C ")" +
+  prefix = C "(" * V "whitespace" * V "exp" * V "whitespace" * C ")" +
            V "Name";
   -- A Suffix is a Call or Index
   suffix = V "call" +
            V "index";
 
-  var = V "prefix" * (V "space" * V "suffix" * #(V "space" * V "suffix"))^0 * V "space" * V "index" +
+  var = V "prefix" * (V "whitespace" * V "suffix" * #(V "whitespace" * V "suffix"))^0 * V "whitespace" * V "index" +
         V "Name";
-  functioncall = V "prefix" * (V "space" * V "suffix" * #(V "space" * V "suffix"))^0 * V "space" * V "call";
+  functioncall = V "prefix" * (V "whitespace" * V "suffix" * #(V "whitespace" * V "suffix"))^0 * V "whitespace" * V "call";
 
-  explist = V "exp" * (V "space" * C "," * SPACE * V "space" * V "exp")^0;
+  explist = V "exp" * (V "whitespace" * C "," * SPACE * V "whitespace" * V "exp")^0;
 
-  args = C "(" * INDENT_INCREASE(V "space" * (V "explist" * V "space")^-1, true) * C ")" +
+  args = C "(" * INDENT_INCREASE(V "whitespace" * (V "explist" * V "whitespace")^-1, true) * C ")" +
          SPACE * V "tableconstructor" +
          SPACE * V "String";
 
-  ["function"] = K "function" * SPACE * V "space" * V "funcbody";
+  ["function"] = K "function" * SPACE * V "whitespace" * V "funcbody";
 
-  funcbody = C "(" * V "space" * (V "parlist" * V "space")^-1 * C ")" * INDENT_INCREASE(V "block" * V "space") * INDENT * K "end";
+  funcbody = C "(" * V "whitespace" * (V "parlist" * V "whitespace")^-1 * C ")" * INDENT_INCREASE(V "block" * V "whitespace") * INDENT * K "end";
 
-  parlist = V "namelist" * (V "space" * C "," * SPACE * V "space" * C "...")^-1 +
+  parlist = V "namelist" * (V "whitespace" * C "," * SPACE * V "whitespace" * C "...")^-1 +
             C "...";
 
   tableconstructor = C "{" * (INDENT_INCREASE(V "filler" * V "fieldlist" * V "filler") * INDENT + V "filler") * C "}";
 
-  field_space_after = (locale.space - P "\n")^0 * SPACE * V "one_line_comment";
-  fieldlist = INDENT * V "field" * (V "space" * V "fieldsep" * (V "field_space_after" + NEWLINE) * V "filler" * INDENT * V "field")^0 * (V "space" * V "fieldsep")^-1 * NEWLINE;
+  field_space_after = (V "space" - P "\n")^0 * SPACE * V "one_line_comment";
+  fieldlist = INDENT * V "field" * (V "whitespace" * V "fieldsep" * (V "field_space_after" + NEWLINE) * V "filler" * INDENT * V "field")^0 * (V "whitespace" * V "fieldsep")^-1 * NEWLINE;
 
-  field = C "[" * V "space" * V "exp" * V "space" * C "]" * SPACE * V "space" * C "=" * SPACE * V "space" * V "exp" +
-          V "Name" * SPACE * V "space" * C "=" * SPACE * V "space" * V "exp" +
+  field = C "[" * V "whitespace" * V "exp" * V "whitespace" * C "]" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "exp" +
+          V "Name" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "exp" +
           V "exp";
 
   fieldsep = C "," +
