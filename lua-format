@@ -36,12 +36,17 @@ if [ ! \( -x "$LUA" -a -x "$LUAC" \) ]; then
 fi
 
 
-ARGUMENTS='--options i --long in-place --name lua-format'
+ARGUMENTS='--options i,h --long in-place,help --name lua-format'
 IN_PLACE=0
 
 NEW_ARGUMENTS=$(getopt $ARGUMENTS -- "$@")
 
+function usage {
+  echo "$0 [--in-place] file1 [file2 [...]]"
+}
+
 if [ $? -ne 0 ]; then
+  usage
   exit 1
 fi
 
@@ -52,6 +57,10 @@ while [ $# -ge 0 ]; do
     -i|--in-place)
       IN_PLACE=1
       shift
+      ;;
+    -h|--help)
+      usage
+      exit
       ;;
     --)
       shift
