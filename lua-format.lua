@@ -30,6 +30,9 @@ local io = require "io";
 local read = io.read;
 local write = io.write;
 
+local table = require "table";
+local concat = table.concat;
+
 local lpeg = require "lpeg";
 
 lpeg.setmaxstack(2000);
@@ -41,28 +44,23 @@ local V = lpeg.V;
 local C = lpeg.C;
 local Cb = lpeg.Cb;
 local Cc = lpeg.Cc;
+local Cf = lpeg.Cf;
 local Cg = lpeg.Cg;
 local Cs = lpeg.Cs;
 local Cmt = lpeg.Cmt;
-local Cf = lpeg.Cf;
+local Ct = lpeg.Ct;
 
 local NEWLINE = Cc "\n";
-local n = 0;
-local function indent (s, i, ...)
-  return true, ("  "):rep(n); -- two spaces
-end
-local INDENT = Cmt(true, indent);
-local INDENT_INCREASE_TRUE = Cmt(true, function (s, i, ...) n = n+1; return true; end);
-local INDENT_DECREASE_TRUE = Cmt(true, function (s, i, ...) n = n-1; return true; end);
-local INDENT_DECREASE_FALSE = Cmt(true, function (s, i, ...) n = n-1; return false; end);
+local SPACE = Cc " ";
+local INDENT_SPACE = Cc "  ";
 local function INDENT_INCREASE (p, nonewline)
   if nonewline then
-    return INDENT_INCREASE_TRUE * p * INDENT_DECREASE_TRUE + INDENT_DECREASE_FALSE;
+    return Cg(Cg(Cb "indent" * INDENT_SPACE, "indent") * p);
   else
-    return INDENT_INCREASE_TRUE * NEWLINE * p * INDENT_DECREASE_TRUE + INDENT_DECREASE_FALSE;
+    return Cg(Cg(Cb "indent" * INDENT_SPACE, "indent") * NEWLINE * p);
   end
 end
-local SPACE = Cc " ";
+local INDENT = Cb "indent";
 
 local shebang = P "#" * (P(1) - P "\n")^0 * P "\n";
 
@@ -71,7 +69,7 @@ local function K (k) -- keyword
 end
 
 local lua = lpeg.locale {
-  C(shebang)^-1 * V "filler" * V "chunk" * V "filler" * -P(1);
+  Cg(Cc "", "indent") * C(shebang)^-1 * V "filler" * V "chunk" * V "filler" * -P(1);
 
   -- keywords
 
@@ -257,6 +255,6 @@ if DEBUG then
   end
 end
 
-lua = Cf(lua, function (a, b) return a..b end);
+lua = Ct(lua) / concat;
 
 write(assert(lua:match(assert(read "*a"))));
