@@ -1191,7 +1191,6 @@ static void gotostat (LexState *ls, int pc) {
     luaX_next(ls);  /* skip break */
     label = luaS_new(ls->L, "break");
   }
-  testnext(ls, ';');  /* skip optional semicolon */
   g = newlabelentry(ls, &ls->dyd->gt, label, line, pc);
   findlabel(ls, g);  /* close it if label already defined */
 }
