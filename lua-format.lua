@@ -50,7 +50,7 @@ local Cs = lpeg.Cs;
 local Cmt = lpeg.Cmt;
 local Ct = lpeg.Ct;
 
-local NEWLINE = Cc "\n";
+local NEWLINE = Cc "\n" * ((V "space" - P "\n")^0 * P "\n")^-1;
 local SPACE = Cc " ";
 local INDENT_SPACE = Cc "  ";
 local function INDENT_INCREASE (p, nonewline)
@@ -99,11 +99,15 @@ local lua = lpeg.locale {
   --                  C "--" * Cc "[[ " * (V "space" - P "\n")^0 * (C(1) - P "\n")^0 * (P "\n" + -P(1)) * Cc " ]]"; -- change one-line comment to multi-line comment so it doesn't need line terminator
                     V "one_line_comment" * INDENT;
 
-  whitespace = (V "space" + (#V "shorten_comment" * SPACE * V "shorten_comment" * SPACE))^0; -- match comment before indenting (lpeg limitation)
+  whitespace = (V "space" + (SPACE * V "shorten_comment" * SPACE))^0;
   space_after_stat = ((V "space" - P "\n")^0 * (P ";")^-1 * (V "space" - P "\n")^0 * SPACE * V "one_line_comment") +
                      (V "whitespace" * P ";")^-1 * NEWLINE;
 
-  filler = ((((V "space" - P "\n")^0 * P "\n")^2 * Cc "\n" + (V "space" + (#V "comment" * INDENT * V "comment" * (C "\n")^-1)))^0) + V "whitespace";
+  -- match "filler" comments
+  line_of_space = (V "space" - P "\n")^0 * P "\n";
+  collapse_whitespace = V "line_of_space"^3 * Cc "\n\n" + V "line_of_space"^1 * Cc "\n";
+  filler_comment = (V "space" - P "\n")^0 * INDENT * V "one_line_comment"; -- * C "\n"^-1;
+  filler = (V "collapse_whitespace" + V "filler_comment")^0 * V "whitespace" + V "whitespace";
 
   -- Types and Comments
 
