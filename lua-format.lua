@@ -121,11 +121,15 @@ local lua = lpeg.locale {
 
   -- Lua Complete Syntax
 
-  chunk = (V "filler" * INDENT * V "stat" * V "space_after_stat")^0 * (V "filler" * INDENT * V "laststat" * V "space_after_stat")^-1;
+  chunk = (V "filler" * INDENT * V "stat" * V "space_after_stat")^0 * (V "filler" * INDENT * V "retstat" * V "space_after_stat")^-1;
 
   block = V "chunk";
 
-  stat = K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
+  stat = P ";" +
+         V "label" +
+         K "break" * Cc ";" +
+         K "goto" * SPACE * V "whitespace" * V "Name" * Cc ";" +
+         K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
          K "while" * SPACE * V "whitespace" * V "exp" * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
          K "repeat" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "until" * SPACE * V "whitespace" * V "exp" +
          K "if" * SPACE * V "whitespace" * V "exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * (INDENT * K "elseif" * SPACE * V "whitespace" * V "exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^0 * (INDENT * K "else" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^-1 * INDENT * K "end" +
@@ -137,7 +141,9 @@ local lua = lpeg.locale {
          V "varlist" * V "whitespace" * SPACE * C "=" * SPACE * V "whitespace" * V "explist" * Cc ";" +
          V "functioncall" * Cc ";";
 
-  laststat = K "return" * (SPACE * V "whitespace" * V "explist")^-1 * Cc ";" + K "break" * Cc ";";
+  label = P "::" * V "whitespace" *  V "Name" * V "whitespace" * P "::";
+
+  retstat = K "return" * (SPACE * V "whitespace" * V "explist")^-1 * Cc ";";
 
   funcname = V "Name" * (V "whitespace" * C "." * V "whitespace" * V "Name")^0 * (V "whitespace" * C ":" * V "whitespace" * V "Name")^-1;
 
