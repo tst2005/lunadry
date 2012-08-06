@@ -3,3 +3,4 @@ change all function calls with object parameter to without quotes
 remove redundant parenthesis in ifs
 change GLOBAL var = function end to function Var () end
 handle \* for lua 5.2
+Hexadecimal fractions and exponents in numerical literals
