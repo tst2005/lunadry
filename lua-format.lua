@@ -111,7 +111,7 @@ local lua = lpeg.locale {
   -- Types and Comments
 
   Name = C(V "alpha" + P "_") * C(V "alnum" + P "_")^0 - V "keywords";
-  Number = C((P "-")^-1 * V "whitespace" * P "0x" * V "xdigit"^1 * -(V "alnum" + P "_")) +
+  Number = C((P "-")^-1 * V "whitespace" * P "0" * S "xX" * V "xdigit"^1 * -(V "alnum" + P "_")) +
            C((P "-")^-1 * V "whitespace" * V "digit"^1 * (P "." * V "digit"^0)^-1 * (S "eE" * (P "-")^-1 * V "digit"^1)^-1 * -(V "alnum" + P "_")) +
            C((P "-")^-1 * V "whitespace" * P "." * V "digit"^1 * (S "eE" * (P "-")^-1 * V "digit"^1)^-1 * -(V "alnum" + P "_"));
   String = C(P "\"" * (P "\\" * P(1) + (1 - P "\""))^0 * P "\"") +
@@ -240,7 +240,6 @@ local lua = lpeg.locale {
          K "not" * SPACE;
 };
 
-DEBUG=true
 if DEBUG then
   local level = 0;
   for k, p in pairs(lua) do
