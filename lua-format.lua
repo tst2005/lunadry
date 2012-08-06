@@ -193,7 +193,11 @@ local lua = lpeg.locale {
 
   explist = V "exp" * (V "whitespace" * C "," * SPACE * V "whitespace" * V "exp")^0;
 
-  args = C "(" * INDENT_INCREASE(V "whitespace" * (V "explist" * V "whitespace")^-1, true) * C ")" +
+  -- Change func({}) to func {}
+  -- Change func("...") to func "..."
+  args = P "(" * SPACE * V "whitespace" * V "tableconstructor" * V "whitespace" * P ")" +
+         P "(" * SPACE * V "whitespace" * V "String" * V "whitespace" * P ")" +
+         C "(" * INDENT_INCREASE(V "whitespace" * (V "explist" * V "whitespace")^-1, true) * C ")" +
          SPACE * V "tableconstructor" +
          SPACE * V "String";
 
