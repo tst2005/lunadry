@@ -1,3 +1,4 @@
 change all strings to double quotes
 change all function calls with object parameter to without quotes
 remove redundant parenthesis in ifs
+change GLOBAL var = function end to function Var () end
