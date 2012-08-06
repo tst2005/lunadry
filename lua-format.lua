@@ -1,5 +1,3 @@
-#!/usr/local/bin/lua
-
 -- Copyright (c) 2011 Patrick Joseph Donnelly
 --
 -- Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -29,6 +27,7 @@ local require = require;
 local io = require "io";
 local read = io.read;
 local write = io.write;
+local stderr = io.stderr;
 
 local table = require "table";
 local concat = table.concat;
@@ -241,25 +240,26 @@ local lua = lpeg.locale {
          K "not" * SPACE;
 };
 
+DEBUG=true
 if DEBUG then
   local level = 0;
   for k, p in pairs(lua) do
     local enter = lpeg.Cmt(lpeg.P(true), function(s, p, ...)
-      write((" "):rep(level*2), "ENTER ", k, ": ", s:sub(p, p), "\n");
+      stderr:write((" "):rep(level*2), "ENTER ", k, ": ", s:sub(p, p), "\n");
       level = level+1;
-      return true;
+      return true, ...;
     end);
     local leave = lpeg.Cmt(lpeg.P(true), function(s, p, ...)
       level = level-1;
-      write((" "):rep(level*2), "LEAVE ", k, "\n");
-      return true;
+      stderr:write((" "):rep(level*2), "LEAVE ", k, "\n");
+      return true, ...;
     end) * (lpeg.P("k") - lpeg.P "k");
     lua[k] = lpeg.Cmt(enter * p + leave, function(s, p, ...)
       level = level-1;
       if k == "space" or k == "comment" then
-        return true;
+        return true, ...;
       end
-      write((" "):rep(level*2), "MATCH ", k, "\n", s:sub(p - 200 < 0 and 1 or p-200, p-1), "\n");
+      stderr:write((" "):rep(level*2), "MATCH ", k, "\n", s:sub(p - 200 < 0 and 1 or p-200, p-1), "\n");
       return true, ...;
     end);
   end
