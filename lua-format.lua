@@ -18,7 +18,7 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 -- SOFTWARE.
 
-local DEBUG = true;
+local DEBUG = false;
 
 local assert = assert;
 local pairs = pairs;
@@ -207,7 +207,7 @@ local lua = lpeg.locale {
   tableconstructor = C "{" * (INDENT_INCREASE(V "filler" * V "fieldlist" * V "filler") * INDENT + V "filler") * C "}";
 
   field_space_after = (V "space" - P "\n")^0 * SPACE * V "one_line_comment";
-  fieldlist = INDENT * V "field" * (V "whitespace" * V "fieldsep" * (V "field_space_after" + NEWLINE) * V "filler" * INDENT * V "field")^0 * (V "whitespace" * V "fieldsep")^-1 * NEWLINE;
+  fieldlist = INDENT * V "field" * (V "whitespace" * V "fieldsep" * (V "field_space_after" + NEWLINE) * V "filler" * INDENT * V "field")^0 * (V "whitespace" * V "fieldsep" + Cc ",")^-1 * NEWLINE;
 
   field = C "[" * V "whitespace" * V "exp" * V "whitespace" * C "]" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "exp" +
           V "Name" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "exp" +
