@@ -244,24 +244,26 @@ DEBUG=true
 if DEBUG then
   local level = 0;
   for k, p in pairs(lua) do
-    local enter = lpeg.Cmt(lpeg.P(true), function(s, p, ...)
+    local enter = lpeg.Cmt(lpeg.P(true), function (s, p)
       stderr:write((" "):rep(level*2), "ENTER ", k, ": ", s:sub(p, p), "\n");
       level = level+1;
-      return true, ...;
+      return true;
     end);
-    local leave = lpeg.Cmt(lpeg.P(true), function(s, p, ...)
-      level = level-1;
-      stderr:write((" "):rep(level*2), "LEAVE ", k, "\n");
-      return true, ...;
-    end) * (lpeg.P("k") - lpeg.P "k");
-    lua[k] = lpeg.Cmt(enter * p + leave, function(s, p, ...)
+    local match = lpeg.Cmt(lpeg.P(true), function (s, p)
       level = level-1;
       if k == "space" or k == "comment" then
-        return true, ...;
+        return true;
+      else
+        stderr:write((" "):rep(level*2), "MATCH ", k, "\n", s:sub(p - 200 < 0 and 1 or p-200, p-1), "\n");
+        return true;
       end
-      stderr:write((" "):rep(level*2), "MATCH ", k, "\n", s:sub(p - 200 < 0 and 1 or p-200, p-1), "\n");
-      return true, ...;
     end);
+    local leave = lpeg.Cmt(lpeg.P(true), function (s, p)
+      level = level-1;
+      stderr:write((" "):rep(level*2), "LEAVE ", k, "\n");
+      return false;
+    end);
+    lua[k] = enter * p * match + leave;
   end
 end
 
