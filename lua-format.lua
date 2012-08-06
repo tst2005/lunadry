@@ -18,7 +18,7 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 -- SOFTWARE.
 
-local DEBUG = false;
+local DEBUG = true;
 
 local assert = assert;
 local pairs = pairs;
@@ -90,15 +90,11 @@ local lua = lpeg.locale {
   -- comments & whitespace
 
   all_but_last_space = (C(1) - ((V "space" - P "\n")^0 * (P "\n" + -P(1))))^0 * (V "space" - P "\n")^0 * (C "\n" + -P(1) * Cc "\n");
-  one_line_comment = C "--" * V "all_but_last_space";
+  one_line_comment = -V "multi_line_comment" * C "--" * V "all_but_last_space";
   multi_line_comment = C "--" * V "longstring";
-  comment = V "multi_line_comment" + V "one_line_comment";
+  comment = V "multi_line_comment" + V "one_line_comment" * INDENT;
 
-  shorten_comment = V "multi_line_comment" +
-  --                  C "--" * Cc "[[ " * (V "space" - P "\n")^0 * (C(1) - P "\n")^0 * (P "\n" + -P(1)) * Cc " ]]"; -- change one-line comment to multi-line comment so it doesn't need line terminator
-                    V "one_line_comment" * INDENT;
-
-  whitespace = (V "space" + (SPACE * V "shorten_comment" * SPACE))^0;
+  whitespace = (V "space" + (SPACE * V "comment" * SPACE))^0;
   space_after_stat = ((V "space" - P "\n")^0 * (P ";")^-1 * (V "space" - P "\n")^0 * SPACE * V "one_line_comment") +
                      (V "whitespace" * P ";")^-1 * NEWLINE;
 
@@ -106,6 +102,7 @@ local lua = lpeg.locale {
   line_of_space = (V "space" - P "\n")^0 * P "\n";
   collapse_whitespace = V "line_of_space"^3 * Cc "\n\n" + V "line_of_space"^1 * Cc "\n";
   filler_comment = (V "space" - P "\n")^0 * INDENT * V "one_line_comment"; -- * C "\n"^-1;
+  --filler_comment = (V "space" - P "\n")^0 * INDENT * (V "one_line_comment" - V "multi_line_comment"); -- * C "\n"^-1; -- FIXME highlighted after INDENT
   filler = (V "collapse_whitespace" + V "filler_comment")^0 * V "whitespace" + V "whitespace";
 
   -- Types and Comments
