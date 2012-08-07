@@ -126,10 +126,10 @@ local lua = lpeg.locale {
          K "break" * Cc ";" +
          K "goto" * SPACE * V "whitespace" * V "Name" * Cc ";" +
          K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
-         K "while" * SPACE * V "whitespace" * V "exp" * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
-         K "repeat" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "until" * SPACE * V "whitespace" * V "exp" +
-         K "if" * SPACE * V "whitespace" * V "exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * (INDENT * K "elseif" * SPACE * V "whitespace" * V "exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^0 * (INDENT * K "else" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^-1 * INDENT * K "end" +
-         K "for" * SPACE * V "whitespace" * V "Name" * V "whitespace" * SPACE * C "=" * SPACE * V "whitespace" * V "exp" * V "whitespace" * C "," * SPACE * V "whitespace" * V "exp" * (V "whitespace" * C "," * SPACE * V "whitespace" * V "exp")^-1 * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
+         K "while" * SPACE * V "whitespace" * V "single_exp" * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
+         K "repeat" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "until" * SPACE * V "whitespace" * V "single_exp" +
+         K "if" * SPACE * V "whitespace" * V "single_exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * (INDENT * K "elseif" * SPACE * V "whitespace" * V "single_exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^0 * (INDENT * K "else" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^-1 * INDENT * K "end" +
+         K "for" * SPACE * V "whitespace" * V "Name" * V "whitespace" * SPACE * C "=" * SPACE * V "whitespace" * V "single_exp" * V "whitespace" * C "," * SPACE * V "whitespace" * V "single_exp" * (V "whitespace" * C "," * SPACE * V "whitespace" * V "single_exp")^-1 * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
          K "for" * SPACE * V "whitespace" * V "namelist" * V "whitespace" * SPACE * K "in" * SPACE * V "whitespace" * V "explist" * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
          K "function" * SPACE * V "whitespace" * V "funcname" * SPACE * V "whitespace" * V "funcbody" +
          K "local" * SPACE * V "whitespace" * K "function" * SPACE * V "whitespace" * V "Name" * V "whitespace" * SPACE * V "funcbody" +
@@ -157,6 +157,17 @@ local lua = lpeg.locale {
   -- var ::= prefix {suffix} index | Name
   -- functioncall ::= prefix {suffix} call
 
+  deparenthesis_value = P "(" * V "whitespace" * (V "deparenthesis_value" + V "value_simple") * V "whitespace" * P ")";
+
+  value_simple = K "nil" +
+                 K "false" +
+                 K "true" +
+                 V "Number" +
+                 V "String" +
+                 V "function" +
+                 V "tableconstructor" +
+                 V "var";
+
   -- Something that represents a value (or many values)
   value = K "nil" +
           K "false" +
@@ -168,14 +179,20 @@ local lua = lpeg.locale {
           V "tableconstructor" +
           V "functioncall" +
           V "var" +
+          V "deparenthesis_value" + -- remove redundant parenthesis
           C "(" * V "whitespace" * V "exp" * V "whitespace" * C ")";
 
   -- An expression operates on values to produce a new value or is a value
   exp = V "unop" * V "whitespace" * V "exp" +
         V "value" * (V "whitespace" * V "binop" * V "whitespace" * V "exp")^-1;
 
+  -- This is an expression which is always truncated to 1 result, and so we can remove
+  -- redundant parenthesis.
+  single_exp = P "(" * V "whitespace" * V "single_exp" * V "whitespace" * P ")" * -(V "whitespace" * (V "suffix" + V "binop")) + 
+               V "exp";
+
   -- Index and Call
-  index = C "[" * V "whitespace" * V "exp" * V "whitespace" * C "]" +
+  index = C "[" * V "whitespace" * V "single_exp" * V "whitespace" * C "]" +
           C "." * V "whitespace" * V "Name";
   call = V "args" +
          C ":" * V "whitespace" * V "Name" * V "whitespace" * V "args";
@@ -213,8 +230,8 @@ local lua = lpeg.locale {
   field_space_after = (V "space" - P "\n")^0 * SPACE * V "one_line_comment";
   fieldlist = INDENT * V "field" * (V "whitespace" * V "fieldsep" * (V "field_space_after" + NEWLINE) * V "filler" * INDENT * V "field")^0 * (V "whitespace" * V "fieldsep" + Cc ",")^-1 * NEWLINE;
 
-  field = C "[" * V "whitespace" * V "exp" * V "whitespace" * C "]" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "exp" +
-          V "Name" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "exp" +
+  field = C "[" * V "whitespace" * V "single_exp" * V "whitespace" * C "]" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "single_exp" +
+          V "Name" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "single_exp" +
           V "exp";
 
   fieldsep = C "," +
