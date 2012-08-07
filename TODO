@@ -1,5 +1,4 @@
 change all strings to double quotes
-remove redundant parenthesis in ifs (rather from any expression?)
 change GLOBAL var = function end to function Var () end
 handle \* for lua 5.2
 Hexadecimal fractions and exponents in numerical literals
