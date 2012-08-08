@@ -109,9 +109,11 @@ local lua = lpeg.locale {
   -- Types and Comments
 
   Name = C(V "alpha" + P "_") * C(V "alnum" + P "_")^0 - V "keywords";
-  Number = C((P "-")^-1 * V "whitespace" * P "0" * S "xX" * V "xdigit"^1 * -(V "alnum" + P "_")) +
-           C((P "-")^-1 * V "whitespace" * V "digit"^1 * (P "." * V "digit"^0)^-1 * (S "eE" * (P "-")^-1 * V "digit"^1)^-1 * -(V "alnum" + P "_")) +
-           C((P "-")^-1 * V "whitespace" * P "." * V "digit"^1 * (S "eE" * (P "-")^-1 * V "digit"^1)^-1 * -(V "alnum" + P "_"));
+  BinaryExponent = S "pP" * (P "-")^-1 * V "digit"^1;
+  DecimalExponent = S "eE" * (P "-")^-1 * V "digit"^1;
+  Number = C((P "-")^-1 * V "whitespace" * P "0" * S "xX" * V "xdigit"^1 * (P "." * V "xdigit"^0)^-1 * V "BinaryExponent" * -(V "alnum" + P "_")) +
+           C((P "-")^-1 * V "whitespace" * V "digit"^1 * (P "." * V "digit"^0)^-1 * V "DecimalExponent"^-1 * -(V "alnum" + P "_")) +
+           C((P "-")^-1 * V "whitespace" * P "." * V "digit"^1 * V "DecimalExponent"^-1 * -(V "alnum" + P "_"));
   String = C(P "\"" * (P "\\" * P(1) + (1 - P "\""))^0 * P "\"") +
            C(P "'" * (P "\\" * P(1) + (1 - P "'"))^0 * P "'") +
            V "longstring";
