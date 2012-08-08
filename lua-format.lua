@@ -49,9 +49,9 @@ local Cs = lpeg.Cs;
 local Cmt = lpeg.Cmt;
 local Ct = lpeg.Ct;
 
-local NEWLINE = Cc "\n" * ((V "space" - P "\n")^0 * P "\n")^-1;
-local SPACE = Cc " ";
-local INDENT_SPACE = Cc "  ";
+local NEWLINE = Cb "newline" * ((V "space" - P "\n")^0 * P "\n")^-1;
+local SPACE = Cb "space";
+local INDENT_SPACE = Cb "indent_space";
 local function INDENT_INCREASE (p, nonewline)
   if nonewline then
     return Cg(Cg(Cb "indent" * INDENT_SPACE, "indent") * p);
@@ -68,7 +68,8 @@ local function K (k) -- keyword
 end
 
 local lua = lpeg.locale {
-  Cg(Cc "", "indent") * C(shebang)^-1 * V "filler" * V "chunk" * V "filler" * -P(1);
+  V "init" * C(shebang)^-1 * V "filler" * V "chunk" * V "filler" * -P(1);
+  init = Cg(Cc "\n", "newline") * Cg(Cc "", "indent") * Cg(Cc "  ", "indent_space") * Cg(Cc " ", "space");
 
   -- keywords
 
@@ -126,10 +127,10 @@ local lua = lpeg.locale {
          K "break" * Cc ";" +
          K "goto" * SPACE * V "whitespace" * V "Name" * Cc ";" +
          K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
-         K "while" * SPACE * V "whitespace" * V "single_exp" * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
-         K "repeat" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "until" * SPACE * V "whitespace" * V "single_exp" +
-         K "if" * SPACE * V "whitespace" * V "single_exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * (INDENT * K "elseif" * SPACE * V "whitespace" * V "single_exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^0 * (INDENT * K "else" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^-1 * INDENT * K "end" +
-         K "for" * SPACE * V "whitespace" * V "Name" * V "whitespace" * SPACE * C "=" * SPACE * V "whitespace" * V "single_exp" * V "whitespace" * C "," * SPACE * V "whitespace" * V "single_exp" * (V "whitespace" * C "," * SPACE * V "whitespace" * V "single_exp")^-1 * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
+         K "while" * SPACE * V "whitespace" * V "oneline_exp" * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
+         K "repeat" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "until" * SPACE * V "whitespace" * V "oneline_exp" +
+         K "if" * SPACE * V "whitespace" * V "oneline_exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * (INDENT * K "elseif" * SPACE * V "whitespace" * V "oneline_exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^0 * (INDENT * K "else" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^-1 * INDENT * K "end" +
+         K "for" * SPACE * V "whitespace" * V "Name" * V "whitespace" * SPACE * C "=" * SPACE * V "whitespace" * V "oneline_exp" * V "whitespace" * C "," * SPACE * V "whitespace" * V "oneline_exp" * (V "whitespace" * C "," * SPACE * V "whitespace" * V "oneline_exp")^-1 * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
          K "for" * SPACE * V "whitespace" * V "namelist" * V "whitespace" * SPACE * K "in" * SPACE * V "whitespace" * V "explist" * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
          K "function" * SPACE * V "whitespace" * V "funcname" * SPACE * V "whitespace" * V "funcbody" +
          K "local" * SPACE * V "whitespace" * K "function" * SPACE * V "whitespace" * V "Name" * V "whitespace" * SPACE * V "funcbody" +
@@ -191,6 +192,8 @@ local lua = lpeg.locale {
   single_exp = P "(" * V "whitespace" * V "single_exp" * V "whitespace" * P ")" * -(V "whitespace" * (V "suffix" + V "binop")) + 
                V "exp";
 
+  oneline_exp = Cg(Cg(Cc " ", "newline") * Cg(Cc "", "indent") * Cg(Cc "", "indent_space") * V "single_exp");
+
   -- Index and Call
   index = C "[" * V "whitespace" * V "single_exp" * V "whitespace" * C "]" +
           C "." * V "whitespace" * V "Name";
@@ -230,7 +233,7 @@ local lua = lpeg.locale {
   field_space_after = (V "space" - P "\n")^0 * SPACE * V "one_line_comment";
   fieldlist = INDENT * V "field" * (V "whitespace" * V "fieldsep" * (V "field_space_after" + NEWLINE) * V "filler" * INDENT * V "field")^0 * (V "whitespace" * V "fieldsep" + Cc ",")^-1 * NEWLINE;
 
-  field = C "[" * V "whitespace" * V "single_exp" * V "whitespace" * C "]" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "single_exp" +
+  field = C "[" * V "whitespace" * V "oneline_exp" * V "whitespace" * C "]" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "single_exp" +
           V "Name" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "single_exp" +
           V "exp";
 
