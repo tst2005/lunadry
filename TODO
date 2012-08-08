@@ -2,5 +2,3 @@ change all strings to double quotes
 change GLOBAL var = function end to function Var () end
 handle \* for lua 5.2
 Hexadecimal fractions and exponents in numerical literals
-Context based table constructors? If in if statement, while, etc., then don't indent and add ne
-wlines
