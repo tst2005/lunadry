@@ -101,7 +101,7 @@ function filter {
 
 for file do
   out="${file}.out"
-  echo Indenting "$file" >&2
+  echo Formatting "$file" >&2
   "$LUA" "$DIRECTORY/lua-format.lua" < "$file" > "$out"
   diff -Naur <("$LUAC" -l -p "$file" | filter) <("$LUAC" -l -p "$out" | filter) >&2
   if [ $IN_PLACE -eq 1 ]; then
