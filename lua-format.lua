@@ -127,8 +127,8 @@ local lua = lpeg.locale {
 
   stat = P ";" +
          V "label" +
-         K "break" * Cc ";" +
-         K "goto" * SPACE * V "whitespace" * V "Name" * Cc ";" +
+         K "break" +
+         K "goto" * SPACE * V "whitespace" * V "Name" +
          K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
          K "while" * SPACE * V "whitespace" * V "_oneline_exp" * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
          K "repeat" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "until" * SPACE * V "whitespace" * V "_oneline_exp" +
@@ -137,16 +137,16 @@ local lua = lpeg.locale {
          K "for" * SPACE * V "whitespace" * V "namelist" * V "whitespace" * SPACE * K "in" * SPACE * V "whitespace" * V "explist" * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
          K "function" * SPACE * V "whitespace" * V "funcname" * SPACE * V "whitespace" * V "funcbody" +
          K "local" * SPACE * V "whitespace" * K "function" * SPACE * V "whitespace" * V "Name" * V "whitespace" * SPACE * V "funcbody" +
-         K "local" * SPACE * V "whitespace" * V "namelist" * (SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "explist")^-1  * Cc ";" +
+         K "local" * SPACE * V "whitespace" * V "namelist" * (SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "explist")^-1 +
          V "_function_declaration" +
-         V "varlist" * V "whitespace" * SPACE * C "=" * SPACE * V "whitespace" * V "explist" * Cc ";" +
-         V "functioncall" * Cc ";";
+         V "varlist" * V "whitespace" * SPACE * C "=" * SPACE * V "whitespace" * V "explist" +
+         V "functioncall";
 
   _function_declaration = Cmt((Ct(V "Name") / concat) * V "space"^0 * P "=" * V "space"^0 * (Ct(V "function") / concat) * -(V "whitespace" * (V "binop" + P ",")), function (s, p, name, f) local new = f:gsub("^function", "function "..name) return true, new end);
 
   label = P "::" * V "whitespace" *  V "Name" * V "whitespace" * P "::";
 
-  retstat = K "return" * (SPACE * V "whitespace" * V "explist")^-1 * Cc ";";
+  retstat = K "return" * (SPACE * V "whitespace" * V "explist")^-1;
 
   funcname = V "Name" * (V "whitespace" * C "." * V "whitespace" * V "Name")^0 * (V "whitespace" * C ":" * V "whitespace" * V "Name")^-1;
 
