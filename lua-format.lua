@@ -45,6 +45,7 @@ local Cb = lpeg.Cb;
 local Cc = lpeg.Cc;
 local Cf = lpeg.Cf;
 local Cg = lpeg.Cg;
+local Cp = lpeg.Cp;
 local Cs = lpeg.Cs;
 local Cmt = lpeg.Cmt;
 local Ct = lpeg.Ct;
@@ -68,8 +69,8 @@ local function K (k) -- keyword
 end
 
 local lua = lpeg.locale {
-  V "init" * C(shebang)^-1 * V "filler" * V "chunk" * V "filler" * -P(1);
-  init = Cg(Cc "\n", "newline") * Cg(Cc "", "indent") * Cg(Cc "  ", "indent_space") * Cg(Cc " ", "space");
+  V "_init" * C(shebang)^-1 * V "filler" * V "chunk" * V "filler" * -P(1);
+  _init = Cg(Cc "\n", "newline") * Cg(Cc "", "indent") * Cg(Cc "  ", "indent_space") * Cg(Cc " ", "space");
 
   -- keywords
 
@@ -111,7 +112,7 @@ local lua = lpeg.locale {
   Name = C(V "alpha" + P "_") * C(V "alnum" + P "_")^0 - V "keywords";
   BinaryExponent = S "pP" * (P "-")^-1 * V "digit"^1;
   DecimalExponent = S "eE" * (P "-")^-1 * V "digit"^1;
-  Number = C((P "-")^-1 * V "whitespace" * P "0" * S "xX" * V "xdigit"^1 * (P "." * V "xdigit"^0)^-1 * V "BinaryExponent" * -(V "alnum" + P "_")) +
+  Number = C((P "-")^-1 * V "whitespace" * P "0" * S "xX" * V "xdigit"^1 * (P "." * V "xdigit"^0)^-1 * V "BinaryExponent"^-1 * -(V "alnum" + P "_")) +
            C((P "-")^-1 * V "whitespace" * V "digit"^1 * (P "." * V "digit"^0)^-1 * V "DecimalExponent"^-1 * -(V "alnum" + P "_")) +
            C((P "-")^-1 * V "whitespace" * P "." * V "digit"^1 * V "DecimalExponent"^-1 * -(V "alnum" + P "_"));
   String = C(P "\"" * (P "\\" * P(1) + (1 - P "\""))^0 * P "\"") +
@@ -129,16 +130,19 @@ local lua = lpeg.locale {
          K "break" * Cc ";" +
          K "goto" * SPACE * V "whitespace" * V "Name" * Cc ";" +
          K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
-         K "while" * SPACE * V "whitespace" * V "oneline_exp" * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
-         K "repeat" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "until" * SPACE * V "whitespace" * V "oneline_exp" +
-         K "if" * SPACE * V "whitespace" * V "oneline_exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * (INDENT * K "elseif" * SPACE * V "whitespace" * V "oneline_exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^0 * (INDENT * K "else" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^-1 * INDENT * K "end" +
-         K "for" * SPACE * V "whitespace" * V "Name" * V "whitespace" * SPACE * C "=" * SPACE * V "whitespace" * V "oneline_exp" * V "whitespace" * C "," * SPACE * V "whitespace" * V "oneline_exp" * (V "whitespace" * C "," * SPACE * V "whitespace" * V "oneline_exp")^-1 * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
+         K "while" * SPACE * V "whitespace" * V "_oneline_exp" * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
+         K "repeat" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "until" * SPACE * V "whitespace" * V "_oneline_exp" +
+         K "if" * SPACE * V "whitespace" * V "_oneline_exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * (INDENT * K "elseif" * SPACE * V "whitespace" * V "_oneline_exp" * V "whitespace" * SPACE * K "then" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^0 * (INDENT * K "else" * INDENT_INCREASE(V "filler" * V "block" * V "filler"))^-1 * INDENT * K "end" +
+         K "for" * SPACE * V "whitespace" * V "Name" * V "whitespace" * SPACE * C "=" * SPACE * V "whitespace" * V "_oneline_exp" * V "whitespace" * C "," * SPACE * V "whitespace" * V "_oneline_exp" * (V "whitespace" * C "," * SPACE * V "whitespace" * V "_oneline_exp")^-1 * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
          K "for" * SPACE * V "whitespace" * V "namelist" * V "whitespace" * SPACE * K "in" * SPACE * V "whitespace" * V "explist" * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
          K "function" * SPACE * V "whitespace" * V "funcname" * SPACE * V "whitespace" * V "funcbody" +
          K "local" * SPACE * V "whitespace" * K "function" * SPACE * V "whitespace" * V "Name" * V "whitespace" * SPACE * V "funcbody" +
          K "local" * SPACE * V "whitespace" * V "namelist" * (SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "explist")^-1  * Cc ";" +
+         V "_function_declaration" +
          V "varlist" * V "whitespace" * SPACE * C "=" * SPACE * V "whitespace" * V "explist" * Cc ";" +
          V "functioncall" * Cc ";";
+
+  _function_declaration = Cmt((Ct(V "Name") / concat) * V "space"^0 * P "=" * V "space"^0 * (Ct(V "function") / concat) * -(V "whitespace" * (V "binop" + P ",")), function (s, p, name, f) local new = f:gsub("^function", "function "..name) return true, new end);
 
   label = P "::" * V "whitespace" *  V "Name" * V "whitespace" * P "::";
 
@@ -160,9 +164,9 @@ local lua = lpeg.locale {
   -- var ::= prefix {suffix} index | Name
   -- functioncall ::= prefix {suffix} call
 
-  deparenthesis_value = P "(" * V "whitespace" * (V "deparenthesis_value" + V "value_simple") * V "whitespace" * P ")";
+  _deparenthesis_value = P "(" * V "whitespace" * (V "_deparenthesis_value" + V "_value_simple") * V "whitespace" * P ")";
 
-  value_simple = K "nil" +
+  _value_simple = K "nil" +
                  K "false" +
                  K "true" +
                  V "Number" +
@@ -182,7 +186,7 @@ local lua = lpeg.locale {
           V "tableconstructor" +
           V "functioncall" +
           V "var" +
-          V "deparenthesis_value" + -- remove redundant parenthesis
+          V "_deparenthesis_value" + -- remove redundant parenthesis
           C "(" * V "whitespace" * V "exp" * V "whitespace" * C ")";
 
   -- An expression operates on values to produce a new value or is a value
@@ -191,13 +195,13 @@ local lua = lpeg.locale {
 
   -- This is an expression which is always truncated to 1 result, and so we can remove
   -- redundant parenthesis.
-  single_exp = P "(" * V "whitespace" * V "single_exp" * V "whitespace" * P ")" * -(V "whitespace" * (V "suffix" + V "binop")) + 
+  _single_exp = P "(" * V "whitespace" * V "_single_exp" * V "whitespace" * P ")" * -(V "whitespace" * (V "suffix" + V "binop")) + 
                V "exp";
 
-  oneline_exp = Cg(Cg(Cc " ", "newline") * Cg(Cc "", "indent") * Cg(Cc "", "indent_space") * V "single_exp");
+  _oneline_exp = Cg(Cg(Cc " ", "newline") * Cg(Cc "", "indent") * Cg(Cc "", "indent_space") * V "_single_exp");
 
   -- Index and Call
-  index = C "[" * V "whitespace" * V "single_exp" * V "whitespace" * C "]" +
+  index = C "[" * V "whitespace" * V "_single_exp" * V "whitespace" * C "]" +
           C "." * V "whitespace" * V "Name";
   call = V "args" +
          C ":" * V "whitespace" * V "Name" * V "whitespace" * V "args";
@@ -235,8 +239,8 @@ local lua = lpeg.locale {
   field_space_after = (V "space" - P "\n")^0 * SPACE * V "one_line_comment";
   fieldlist = INDENT * V "field" * (V "whitespace" * V "fieldsep" * (V "field_space_after" + NEWLINE) * V "filler" * INDENT * V "field")^0 * (V "whitespace" * V "fieldsep" + Cc ",")^-1 * NEWLINE;
 
-  field = C "[" * V "whitespace" * V "oneline_exp" * V "whitespace" * C "]" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "single_exp" +
-          V "Name" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "single_exp" +
+  field = C "[" * V "whitespace" * V "_oneline_exp" * V "whitespace" * C "]" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "_single_exp" +
+          V "Name" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "_single_exp" +
           V "exp";
 
   fieldsep = C "," +
