@@ -137,10 +137,22 @@ local lua = lpeg.locale {
          K "for" * SPACE * V "whitespace" * V "namelist" * V "whitespace" * SPACE * K "in" * SPACE * V "whitespace" * V "explist" * V "whitespace" * SPACE * K "do" * INDENT_INCREASE(V "filler" * V "block" * V "filler") * INDENT * K "end" +
          K "function" * SPACE * V "whitespace" * V "funcname" * SPACE * V "whitespace" * V "funcbody" +
          K "local" * SPACE * V "whitespace" * K "function" * SPACE * V "whitespace" * V "Name" * V "whitespace" * SPACE * V "funcbody" +
-         K "local" * SPACE * V "whitespace" * V "namelist" * (SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "explist")^-1 +
+         K "local" * SPACE * V "whitespace" * V "namelist" * (SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "explist")^-1 * V "_check_ambiguous" +
          V "_function_declaration" +
-         V "varlist" * V "whitespace" * SPACE * C "=" * SPACE * V "whitespace" * V "explist" +
-         V "functioncall";
+         V "varlist" * V "whitespace" * SPACE * C "=" * SPACE * V "whitespace" * V "explist" * V "_check_ambiguous" +
+         V "functioncall" * V "_check_ambiguous";
+
+  -- If the script uses a semicolon to avoid an ambiguous syntax situation, we keep it.
+  -- Example:
+  --  a = f()
+  --  ("foo"):method()
+  --
+  -- Can be parsed as:
+  --  a = f()("foo"):method();
+  -- or
+  --  a = f();
+  --  ("foo"):method();
+  _check_ambiguous = #(V "whitespace" * P ";" * V "whitespace" * P "(") * Cc ";" + P(true);
 
   _function_declaration = Cmt((Ct(V "Name") / concat) * V "space"^0 * P "=" * V "space"^0 * (Ct(V "function") / concat) * -(V "whitespace" * (V "binop" + P ",")), function (s, p, name, f) local new = f:gsub("^function", "function "..name) return true, new end);
 
