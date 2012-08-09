@@ -102,7 +102,7 @@ local lua = lpeg.locale {
 
   -- match "filler" comments
   line_of_space = (V "space" - P "\n")^0 * P "\n";
-  collapse_whitespace = V "line_of_space"^3 * Cc "\n\n" + V "line_of_space"^1 * Cc "\n";
+  collapse_whitespace = V "line_of_space"^2 * Cc "\n\n" + V "line_of_space"^1 * Cc "\n";
   filler_comment = (V "space" - P "\n")^0 * INDENT * V "one_line_comment"; -- * C "\n"^-1;
   --filler_comment = (V "space" - P "\n")^0 * INDENT * (V "one_line_comment" - V "multi_line_comment"); -- * C "\n"^-1; -- FIXME highlighted after INDENT
   filler = (V "collapse_whitespace" + V "filler_comment")^0 * V "whitespace" + V "whitespace";
@@ -237,7 +237,7 @@ local lua = lpeg.locale {
   tableconstructor = C "{" * (INDENT_INCREASE(V "filler" * V "fieldlist" * V "filler") * INDENT + V "filler") * C "}";
 
   field_space_after = (V "space" - P "\n")^0 * SPACE * V "one_line_comment";
-  fieldlist = INDENT * V "field" * (V "whitespace" * V "fieldsep" * (V "field_space_after" + NEWLINE) * V "filler" * INDENT * V "field")^0 * (V "whitespace" * V "fieldsep" + Cc ",")^-1 * NEWLINE;
+  fieldlist = INDENT * V "field" * (V "whitespace" * V "fieldsep" * (V "field_space_after" + NEWLINE) * V "filler" * INDENT * V "field")^0 * (V "whitespace" * V "fieldsep" + Cc ",")^-1 * (V "field_space_after" + NEWLINE);
 
   field = C "[" * V "whitespace" * V "_oneline_exp" * V "whitespace" * C "]" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "_single_exp" +
           V "Name" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "_single_exp" +
