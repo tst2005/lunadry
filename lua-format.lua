@@ -164,7 +164,7 @@ local lua = lpeg.locale {
 
   _function_declaration = Cmt(V "Name" * V "space"^0 * P "=" * V "space"^0 * FLATTEN(V "function") * -(V "whitespace" * (V "binop" + P ",")), function (s, p, name, f) local new = f:gsub("^function", "function "..name) return true, new end);
 
-  label = P "::" * V "whitespace" *  V "Name" * V "whitespace" * P "::";
+  label = C "::" * V "whitespace" *  V "Name" * V "whitespace" * C "::";
 
   retstat = K "return" * (SPACE * V "whitespace" * V "explist")^-1;
 
