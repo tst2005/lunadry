@@ -70,7 +70,7 @@ local function K (k) -- keyword
 end
 
 local lua = lpeg.locale {
-  V "_init" * V "_script";
+  V "_init" * Ct(V "_script") / concat;
 
   _init = Cg(Cc "\n", "newline") * Cg(Cc "", "indent") * Cg(Cc "  ", "indent_space") * Cg(Cc " ", "space");
 
@@ -113,7 +113,7 @@ local lua = lpeg.locale {
 
   -- Types and Comments
 
-  Name = C(V "alpha" + P "_") * C(V "alnum" + P "_")^0 - V "keywords";
+  Name = C((V "alpha" + P "_") * (V "alnum" + P "_")^0) - V "keywords";
   BinaryExponent = S "pP" * (P "-")^-1 * V "digit"^1;
   DecimalExponent = S "eE" * (P "-")^-1 * V "digit"^1;
   Number = C((P "-")^-1 * V "whitespace" * P "0" * S "xX" * V "xdigit"^1 * (P "." * V "xdigit"^0)^-1 * V "BinaryExponent"^-1 * -(V "alnum" + P "_")) +
@@ -309,7 +309,6 @@ if DEBUG then
   end
 end
 
-lua = Ct(lua) / concat;
---lua = Cf(Cc "" * lua, function (a, b) if a and not b then return a elseif not a and b then return b else return a..b end end )--if b then return a..b end end)--Ct(lua) / concat;
+lua = P(lua);
 
 write(assert(lua:match(assert(read "*a"))));
