@@ -69,8 +69,12 @@ local function K (k) -- keyword
   return C(k) * -(V "alnum" + P "_");
 end
 
+local function FLATTEN (pattern)
+  return Ct(pattern) / concat;
+end
+
 local lua = lpeg.locale {
-  V "_init" * Ct(V "_script") / concat;
+  V "_init" * FLATTEN(V "_script");
 
   _init = Cg(Cc "\n", "newline") * Cg(Cc "", "indent") * Cg(Cc "  ", "indent_space") * Cg(Cc " ", "space");
 
@@ -158,7 +162,7 @@ local lua = lpeg.locale {
   --  ("foo"):method();
   _check_ambiguous = #(V "whitespace" * P ";" * V "whitespace" * P "(") * Cc ";" + P(true);
 
-  _function_declaration = Cmt((Ct(V "Name") / concat) * V "space"^0 * P "=" * V "space"^0 * (Ct(V "function") / concat) * -(V "whitespace" * (V "binop" + P ",")), function (s, p, name, f) local new = f:gsub("^function", "function "..name) return true, new end);
+  _function_declaration = Cmt(V "Name" * V "space"^0 * P "=" * V "space"^0 * FLATTEN(V "function") * -(V "whitespace" * (V "binop" + P ",")), function (s, p, name, f) local new = f:gsub("^function", "function "..name) return true, new end);
 
   label = P "::" * V "whitespace" *  V "Name" * V "whitespace" * P "::";
 
