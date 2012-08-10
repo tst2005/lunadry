@@ -23,6 +23,7 @@ local DEBUG = false;
 local assert = assert;
 local pairs = pairs;
 local require = require;
+local tostring = tostring;
 
 local io = require "io";
 local read = io.read;
@@ -69,8 +70,11 @@ local function K (k) -- keyword
 end
 
 local lua = lpeg.locale {
-  V "_init" * C(shebang)^-1 * V "filler" * V "chunk" * V "filler" * -P(1);
+  V "_init" * V "_script";
+
   _init = Cg(Cc "\n", "newline") * Cg(Cc "", "indent") * Cg(Cc "  ", "indent_space") * Cg(Cc " ", "space");
+
+  _script = C(shebang)^-1 * V "filler" * V "chunk" * V "filler" * -P(1);
 
   -- keywords
 
@@ -81,8 +85,8 @@ local lua = lpeg.locale {
 
   -- longstrings
 
-  longstring = C { -- from Roberto Ierusalimschy's lpeg examples
-    (V "open" * (P(1) - V "closeeq")^0 * V "close") / function (...) return end;
+  longstring = P { -- from Roberto Ierusalimschy's lpeg examples
+    (V "open" * (P(1) - V "closeeq")^0 * V "close") / "%0";
 
     open = "[" * Cg((P "=")^0, "init") * P "[" * (P "\n")^-1;
     close = "]" * C((P "=")^0) * "]";
@@ -193,7 +197,7 @@ local lua = lpeg.locale {
           K "true" +
           V "Number" +
           V "String" +
-          C "..." +
+          K "..." +
           V "function" +
           V "tableconstructor" +
           V "functioncall" +
@@ -243,8 +247,8 @@ local lua = lpeg.locale {
 
   funcbody = C "(" * V "whitespace" * (V "parlist" * V "whitespace")^-1 * C ")" * INDENT_INCREASE(V "block" * V "whitespace") * INDENT * K "end";
 
-  parlist = V "namelist" * (V "whitespace" * C "," * SPACE * V "whitespace" * C "...")^-1 +
-            C "...";
+  parlist = V "namelist" * (V "whitespace" * C "," * SPACE * V "whitespace" * K "...")^-1 +
+            K "...";
 
   tableconstructor = C "{" * (INDENT_INCREASE(V "filler" * V "fieldlist" * V "filler") * INDENT + V "filler") * C "}";
 
@@ -306,5 +310,6 @@ if DEBUG then
 end
 
 lua = Ct(lua) / concat;
+--lua = Cf(Cc "" * lua, function (a, b) if a and not b then return a elseif not a and b then return b else return a..b end end )--if b then return a..b end end)--Ct(lua) / concat;
 
 write(assert(lua:match(assert(read "*a"))));
