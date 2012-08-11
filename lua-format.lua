@@ -35,7 +35,7 @@ local concat = table.concat;
 
 local lpeg = require "lpeg";
 
-lpeg.setmaxstack(2000);
+lpeg.setmaxstack(8000);
 
 local P = lpeg.P;
 local S = lpeg.S;
@@ -69,6 +69,9 @@ local function K (k) -- keyword
   return C(k) * -(V "alnum" + P "_");
 end
 
+-- The formatter uses captures to indent code. We necessarily use thousands and
+-- thousands of them. At various strategic points, we concatenate these captures
+-- so we don't overflow the Lua stack.
 local function FLATTEN (pattern)
   return Ct(pattern) / concat;
 end
@@ -99,8 +102,9 @@ local lua = lpeg.locale {
 
   -- comments & whitespace
 
-  all_but_last_space = (C(1) - ((V "space" - P "\n")^0 * (P "\n" + -P(1))))^0 * (V "space" - P "\n")^0 * (C "\n" + -P(1) * Cc "\n");
-  one_line_comment = -V "multi_line_comment" * C "--" * V "all_but_last_space";
+  -- read a comment but do not capture any whitespace at the end
+  chomp_comment = C((P(1) - (V "space" - P "\n")^0 * (P "\n" + -P(1)))^0) * (V "space" - P "\n")^0 * (P "\n" + -P(1)) * Cc "\n";
+  one_line_comment = -V "multi_line_comment" * C "--" * V "chomp_comment";
   multi_line_comment = C "--" * V "longstring";
   comment = V "multi_line_comment" + V "one_line_comment" * INDENT;
 
@@ -129,7 +133,7 @@ local lua = lpeg.locale {
 
   -- Lua Complete Syntax
 
-  chunk = (V "filler" * INDENT * V "stat" * V "space_after_stat")^0 * (V "filler" * INDENT * V "retstat" * V "space_after_stat")^-1;
+  chunk = FLATTEN((V "filler" * INDENT * FLATTEN(V "stat") * V "space_after_stat")^0 * (V "filler" * INDENT * V "retstat" * V "space_after_stat")^-1);
 
   block = V "chunk";
 
@@ -247,17 +251,17 @@ local lua = lpeg.locale {
          SPACE * V "tableconstructor" +
          SPACE * V "String";
 
-  ["function"] = K "function" * SPACE * V "whitespace" * V "funcbody";
+  ["function"] = FLATTEN(K "function" * SPACE * V "whitespace" * V "funcbody");
 
   funcbody = C "(" * V "whitespace" * (V "parlist" * V "whitespace")^-1 * C ")" * INDENT_INCREASE(V "block" * V "whitespace") * INDENT * K "end";
 
   parlist = V "namelist" * (V "whitespace" * C "," * SPACE * V "whitespace" * K "...")^-1 +
             K "...";
 
-  tableconstructor = C "{" * (INDENT_INCREASE(V "filler" * V "fieldlist" * V "filler") * INDENT + V "filler") * C "}";
+  tableconstructor = FLATTEN(C "{" * (INDENT_INCREASE(V "filler" * V "fieldlist" * V "filler") * INDENT + V "filler") * C "}");
 
   field_space_after = (V "space" - P "\n")^0 * SPACE * V "one_line_comment";
-  fieldlist = INDENT * V "field" * (V "whitespace" * V "fieldsep" * (V "field_space_after" + NEWLINE) * V "filler" * INDENT * V "field")^0 * (V "whitespace" * V "fieldsep" + Cc ",")^-1 * (V "field_space_after" + NEWLINE);
+  fieldlist = INDENT * FLATTEN(V "field") * (V "whitespace" * V "fieldsep" * (V "field_space_after" + NEWLINE) * V "filler" * INDENT * FLATTEN(V "field"))^0 * (V "whitespace" * V "fieldsep" + Cc ",")^-1 * (V "field_space_after" + NEWLINE);
 
   field = C "[" * V "whitespace" * V "_oneline_exp" * V "whitespace" * C "]" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "_single_exp" +
           V "Name" * SPACE * V "whitespace" * C "=" * SPACE * V "whitespace" * V "_single_exp" +
