@@ -22,7 +22,7 @@
 
 DIRECTORY=$(dirname "$0") # directory of executable
 
-ARGUMENTS='--options i,h --long in-place,help --name lua-format'
+ARGUMENTS='--options i,h --long in-place,help --name lunadry'
 IN_PLACE=0
 
 NEW_ARGUMENTS=$(getopt $ARGUMENTS -- "$@")
@@ -82,7 +82,7 @@ function filter {
 for file do
   out="${file}.out"
   echo Formatting "$file" >&2
-  lua "$DIRECTORY/lua-format.lua" < "$file" > "$out"
+  lua "$DIRECTORY/lunadry.lua" < "$file" > "$out"
   diff -Naur <(luac -l -p "$file" | filter) <(luac -l -p "$out" | filter) >&2
   if [ $IN_PLACE -eq 1 ]; then
     mv -f "$out" "$file"
